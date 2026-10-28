@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d1210">
+<title>M54 Live</title>
+<style>
+/* Тёмная приборная панель для магнитолы: крупные цифры, минимум декора, ничего тяжёлого. */
+:root{--bg:#0d1210;--panel:#151c19;--line:#25302b;--fg:#e8eeea;--fg2:#8d9a94;--ok:#5fd39b;--warn:#f2b552;--bad:#ff6b6b;--acc:#6fa8ff;--set:#f2b552;color-scheme:dark}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f3f5f4;--panel:#fff;--line:#dce2df;--fg:#16201b;--fg2:#5d6a64;--ok:#1b8a55;--warn:#a36200;--bad:#c62828;--acc:#2563c9;--set:#a36200;color-scheme:light}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 16px max(12px,env(safe-area-inset-left))}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.bar h1{font-size:18px;margin:0 8px 0 0;font-weight:600}
+button,input{font:inherit;font-size:16px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:10px 16px;min-height:46px}
+button{cursor:pointer;font-weight:600}
+button.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+button.rec{background:var(--bad);border-color:var(--bad);color:#fff}
+button:disabled{opacity:.4}
+input{width:140px}
+.status{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--fg2);margin-left:auto;align-items:center}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;background:var(--fg2);margin-right:6px;vertical-align:middle}
+.dot.on{background:var(--ok)}.dot.err{background:var(--bad)}.dot.rec{background:var(--bad);animation:bl 1s infinite}
+@keyframes bl{50%{opacity:.2}}
+@media (prefers-reduced-motion:reduce){.dot.rec{animation:none}}
+.grid{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;min-width:0}
+.tile .k{font-size:13px;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .v{font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.15}
+.tile .u{font-size:13px;color:var(--fg2);margin-left:4px;font-weight:400}
+.tile .s{font-size:14px;color:var(--set);font-variant-numeric:tabular-nums}
+.tile.wide{grid-column:span 2}
+.tile.warn .v{color:var(--warn)}.tile.bad .v{color:var(--bad)}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--fg2);margin:14px 2px 6px;font-weight:600}
+canvas{width:100%;height:120px;display:block}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--fg2)}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+.msg{font-size:14px;color:var(--fg2);margin:8px 2px;min-height:1.2em}
+.msg.err{color:var(--bad)}
+details{margin-top:14px;color:var(--fg2);font-size:14px}
+details label{display:inline-flex;gap:6px;align-items:center;margin:6px 14px 6px 0}
+details input[type=checkbox]{width:22px;height:22px;min-height:0}
+@media (max-width:420px){.tile.wide{grid-column:span 1}.tile .v{font-size:26px}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>M54 Live</h1>
+  <button id="btnConnect" class="primary">Подключить кабель</button>
+  <input id="runName" value="city" aria-label="Название заезда">
+  <button id="btnRec" disabled>Начать лог</button>
+  <button id="btnSave" hidden>Сохранить лог</button>
+  <div class="status">
+    <span><i class="dot" id="dotLink"></i><span id="stLink">не подключено</span></span>
+    <span id="stRate">— Гц</span>
+    <span id="stRec"></span>
+  </div>
+</div>
+<div class="msg" id="msg">Подключите K+DCAN к магнитоле и OBD, включите зажигание и нажмите «Подключить кабель».</div>
+
+<h2>Двигатель</h2>
+<div class="grid">
+  <div class="tile"><div class="k">Обороты</div><div class="v" data-k="RPM" data-d="0">—</div></div>
+  <div class="tile"><div class="k">Скорость</div><div class="v"><span data-k="Speed_kmh" data-d="0">—</span><span class="u">км/ч</span></div></div>
+  <div class="tile"><div class="k">Педаль / заслонка</div><div class="v"><span data-k="Pedal_pct" data-d="0">—</span><span class="u">%</span></div><div class="s"><span data-k="Throttle_deg" data-d="1">—</span>°</div></div>
+  <div class="tile"><div class="k">Воздух (ДМРВ)</div><div class="v"><span data-k="MAF_kgh" data-d="1">—</span><span class="u">кг/ч</span></div></div>
+  <div class="tile"><div class="k">Нагрузка</div><div class="v"><span data-k="Load_mg" data-d="0">—</span><span class="u">мг/т</span></div></div>
+  <div class="tile"><div class="k">Впрыск</div><div class="v"><span data-k="Inj_ms" data-d="2">—</span><span class="u">мс</span></div></div>
+  <div class="tile"><div class="k">Угол зажигания</div><div class="v"><span data-k="Ign_deg" data-d="1">—</span><span class="u">°</span></div></div>
+  <div class="tile"><div class="k">Расход сейчас</div><div class="v"><span data-k="Fuel_lh" data-d="1">—</span><span class="u">л/ч</span></div><div class="s"><span data-k="Fuel_l100" data-d="1">—</span> л/100</div></div>
+</div>
+
+<h2>VANOS — факт / цель</h2>
+<div class="grid">
+  <div class="tile wide" id="tVin"><div class="k">Впуск</div><div class="v"><span data-k="VanosIn_deg" data-d="1">—</span><span class="u">°</span></div><div class="s">цель <span data-k="VanosInSet_deg" data-d="1">—</span>° · отставание <span data-k="VanosInErr" data-d="1">—</span>°</div></div>
+  <div class="tile wide" id="tVex"><div class="k">Выпуск</div><div class="v"><span data-k="VanosEx_deg" data-d="1">—</span><span class="u">°</span></div><div class="s">цель <span data-k="VanosExSet_deg" data-d="1">—</span>° · отставание <span data-k="VanosExErr" data-d="1">—</span>°</div></div>
+</div>
+<div class="tile" style="margin-top:8px">
+  <div class="legend"><span><i style="background:var(--acc)"></i>впуск факт</span><span><i style="background:var(--set)"></i>впуск цель</span><span>последние 30 с</span></div>
+  <canvas id="cv" width="800" height="120"></canvas>
+</div>
+
+<h2>Смесь</h2>
+<div class="grid">
+  <div class="tile" id="tL1"><div class="k">Лямбда банк 1</div><div class="v" data-k="Lambda1" data-d="3">—</div></div>
+  <div class="tile" id="tL2"><div class="k">Лямбда банк 2</div><div class="v" data-k="Lambda2" data-d="3">—</div></div>
+  <div class="tile"><div class="k">Адаптация мульт. 1 / 2</div><div class="v"><span data-k="AdaptMul1_pct" data-d="1">—</span><span class="u">%</span></div><div class="s"><span data-k="AdaptMul2_pct" data-d="1">—</span> %</div></div>
+  <div class="tile"><div class="k">Адаптация адд. 1 / 2</div><div class="v"><span data-k="AdaptAdd1_ms" data-d="3">—</span><span class="u">мс</span></div><div class="s"><span data-k="AdaptAdd2_ms" data-d="3">—</span> мс</div></div>
+  <div class="tile"><div class="k">Октан-адаптация</div><div class="v" data-k="OctaneFactor" data-d="3">—</div></div>
+</div>
+
+<h2>Температуры и питание</h2>
+<div class="grid">
+  <div class="tile"><div class="k">Мотор</div><div class="v"><span data-k="Coolant_C" data-d="0">—</span><span class="u">°C</span></div></div>
+  <div class="tile"><div class="k">Масло</div><div class="v"><span data-k="Oil_C" data-d="0">—</span><span class="u">°C</span></div></div>
+  <div class="tile"><div class="k">Выход радиатора</div><div class="v"><span data-k="RadOut_C" data-d="0">—</span><span class="u">°C</span></div></div>
+  <div class="tile"><div class="k">Впуск (коллектор)</div><div class="v"><span data-k="IAT_C" data-d="0">—</span><span class="u">°C</span></div></div>
+  <div class="tile"><div class="k">Напряжение</div><div class="v"><span data-k="Ubatt_V" data-d="1">—</span><span class="u">В</span></div></div>
+</div>
+
+<details>
+  <summary>Настройки кабеля</summary>
+  <label><input type="checkbox" id="optDtr"> DTR</label>
+  <label><input type="checkbox" id="optRts"> RTS</label>
+  <label><input type="checkbox" id="optVanos" checked> Опрашивать цели VANOS</label>
+  <label><button id="btnDemo">Демо без машины</button></label>
+  <p>DTR/RTS переключают режим у некоторых кабелей K+DCAN. Если DME не отвечает — попробуйте включить DTR и переподключиться.</p>
+</details>
+
+<script>
+'use strict';
+// ===== Раскладка из BETRIEBSWTAB файла MS430DS0.prg: [колонка, байт, тип, множитель, смещение]
+// тип 2 = uint8, 3 = int8, 5 = uint16 BE, 7 = int16 BE
+const BLOCK_MAIN = ['0B03', [
+  ['RPM',3,5,1,0],['Speed_kmh',5,2,1,0],['Pedal_pct',6,5,0.0018311,0],['Throttle_deg',8,5,0.0018311,0],
+  ['MAF_kgh',10,5,0.25,0],['Load_mg',34,5,0.0212,0],['Inj_ms',17,5,0.0053333,0],['Ign_deg',16,2,-0.375,72],
+  ['VanosIn_deg',23,2,0.375,60],['VanosEx_deg',24,3,-0.375,-60],['Lambda1',26,5,0.000015259,0.5],['Lambda2',28,5,0.000015259,0.5],
+  ['Coolant_C',13,2,0.75,-48],['RadOut_C',15,2,0.75,-48],['IAT_C',12,2,0.75,-48],['Oil_C',14,2,0.796,-48],
+  ['IdleInt_pct',19,7,0.0015,0],['Baro_hPa',41,5,0.08292,0],['Ubatt_V',43,2,0.10156,0],
+  ['Knock2_V',36,5,0.0000778,0],['Knock5_V',38,5,0.0000778,0]]];
+const BLOCK_VANOS = ['0B90', [['VanosInSet_deg',4,2,0.375,60],['VanosInRef_deg',5,5,0.001465,60],['VanosExSet_deg',10,2,-0.375,-60],['VanosExRef_deg',11,5,-0.001465,-60]]];
+const BLOCK_ADAPT = ['0B91', [['AdaptAdd1_ms',4,5,0.004,-131.072],['AdaptMul1_pct',6,5,0.001526,-50],['AdaptAdd2_ms',8,5,0.004,-131.072],['AdaptMul2_pct',10,5,0.001526,-50]]];
+const BLOCK_RON = ['0B93', [['OctaneFactor',3,5,0.00001526,0]]];
+const COLUMNS = [...BLOCK_MAIN[1], ...BLOCK_VANOS[1], ...BLOCK_ADAPT[1], ...BLOCK_RON[1]].map(c => c[0]);
+
+const $ = id => document.getElementById(id);
+const msg = (t, err) => { $('msg').textContent = t; $('msg').className = 'msg' + (err ? ' err' : ''); };
+
+// ===== FTDI через WebUSB
+class Ftdi {
+  constructor(dev) { this.dev = dev; this.rx = []; this.reading = false; }
+  async ctl(req, value, index = 0) {
+    const r = await this.dev.controlTransferOut({ requestType: 'vendor', recipient: 'device', request: req, value, index });
+    if (r.status !== 'ok') throw new Error('FTDI control ' + req + ' ' + r.status);
+  }
+  async open(dtr, rts) {
+    const d = this.dev;
+    await d.open();
+    if (!d.configuration) await d.selectConfiguration(1);
+    const iface = d.configuration.interfaces[0];
+    await d.claimInterface(iface.interfaceNumber);
+    const eps = iface.alternate.endpoints;
+    this.epIn = eps.find(e => e.direction === 'in' && e.type === 'bulk').endpointNumber;
+    this.epOut = eps.find(e => e.direction === 'out' && e.type === 'bulk').endpointNumber;
+    this.pkt = eps.find(e => e.direction === 'in' && e.type === 'bulk').packetSize || 64;
+    await this.ctl(0x00, 0);            // reset
+    await this.ctl(0x02, 0);            // без управления потоком
+    await this.ctl(0x03, 0x4138, 0);    // 9600 бод (FT232R: 3 МГц / 312.5)
+    await this.ctl(0x04, 0x0208);       // 8 бит, чётность even, 1 стоп
+    await this.ctl(0x09, 2);            // latency 2 мс
+    await this.ctl(0x01, 0x0100 | (dtr ? 1 : 0)); // DTR
+    await this.ctl(0x01, 0x0200 | (rts ? 2 : 0)); // RTS
+    await this.ctl(0x00, 1); await this.ctl(0x00, 2); // очистить буферы
+    this.reading = true; this.readLoop();
+  }
+  async readLoop() {
+    while (this.reading) {
+      try {
+        const r = await this.dev.transferIn(this.epIn, 512);
+        const b = new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength);
+        for (let i = 0; i < b.length; i += this.pkt) {     // у каждого пакета 2 байта статуса FTDI
+          for (let j = i + 2; j < Math.min(i + this.pkt, b.length); j++) this.rx.push(b[j]);
+        }
+      } catch (e) { if (this.reading) { this.reading = false; onLinkLost(e); } }
+    }
+  }
+  async write(bytes) { await this.dev.transferOut(this.epOut, bytes); }
+  async close() { this.reading = false; try { await this.dev.close(); } catch (e) {} }
+}
+
+// ===== DS2
+const DME = 0x12;
+const hex = s => Uint8Array.from(s.match(/../g).map(h => parseInt(h, 16)));
+function telegram(cmdHex) {
+  const cmd = hex(cmdHex), t = new Uint8Array(cmd.length + 3);
+  t[0] = DME; t[1] = t.length; t.set(cmd, 2);
+  let c = 0; for (let i = 0; i < t.length - 1; i++) c ^= t[i]; t[t.length - 1] = c;
+  return t;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function waitBytes(port, n, ms) {
+  const end = performance.now() + ms;
+  while (port.rx.length < n) { if (performance.now() > end) return false; await sleep(2); }
+  return true;
+}
+async function ds2(port, cmdHex) {
+  const tx = telegram(cmdHex);
+  port.rx.length = 0;
+  await port.write(tx);
+  if (!await waitBytes(port, 2, 1000)) throw new Error('нет ответа от DME');
+  // эхо K-line: первые байты повторяют запрос
+  if (port.rx[0] === tx[0] && port.rx[1] === tx[1]) {
+    await waitBytes(port, tx.length, 300);
+    if (tx.every((v, i) => port.rx[i] === v)) port.rx.splice(0, tx.length);
+    if (!await waitBytes(port, 2, 1000)) throw new Error('нет ответа после эха');
+  }
+  if (port.rx[0] !== DME) throw new Error('неожиданный ответ ' + port.rx.slice(0, 4).map(x => x.toString(16)).join(' '));
+  const n = port.rx[1];
+  if (!await waitBytes(port, n, 1000)) throw new Error('ответ оборвался');
+  const r = port.rx.splice(0, n);
+  let c = 0; for (let i = 0; i < n - 1; i++) c ^= r[i];
+  if (c !== r[n - 1]) throw new Error('контрольная сумма');
+  if (r[2] !== 0xA0) throw new Error('DME отказал: ' + r[2].toString(16));
+  return r;
+}
+function raw(r, p, t) {
+  if (t === 2) return r[p];
+  if (t === 3) return r[p] > 127 ? r[p] - 256 : r[p];
+  if (t === 5) return (r[p] << 8) | r[p + 1];
+  if (t === 7) { const v = (r[p] << 8) | r[p + 1]; return v > 32767 ? v - 65536 : v; }
+}
+async function readBlock(port, [cmd, fields], out) {
+  const r = await ds2(port, cmd);
+  for (const [k, p, t, a, b] of fields) if (p + (t >= 5 ? 1 : 0) < r.length - 1) out[k] = raw(r, p, t) * a + b;
+}
+
+// ===== состояние
+let port = null, running = false, demo = false;
+const cur = {}; let rec = null; const hist = [];
+let samples = 0, lastRateT = performance.now(), errs = 0;
+
+function derived(o) {
+  if (o.MAF_kgh != null) { o.Fuel_lh = o.MAF_kgh / 14.7 / 0.745; o.Fuel_l100 = o.Speed_kmh > 3 ? o.Fuel_lh / o.Speed_kmh * 100 : null; }
+  if (o.VanosInSet_deg != null) o.VanosInErr = o.VanosIn_deg - o.VanosInSet_deg;
+  if (o.VanosExSet_deg != null) o.VanosExErr = o.VanosEx_deg - o.VanosExSet_deg;
+}
+
+async function pollLoop() {
+  let nextAdapt = 0;
+  while (running) {
+    const t = performance.now();
+    try {
+      if (demo) { demoFrame(cur, t); await sleep(140); }
+      else {
+        await readBlock(port, BLOCK_MAIN, cur);
+        if ($('optVanos').checked) await readBlock(port, BLOCK_VANOS, cur);
+        if (t >= nextAdapt) { await readBlock(port, BLOCK_ADAPT, cur); await readBlock(port, BLOCK_RON, cur); nextAdapt = t + 5000; }
+      }
+      derived(cur); errs = 0; samples++;
+      setLink('on', demo ? 'демо' : 'DME отвечает');
+      if (rec) rec.rows.push([((t - rec.t0) / 1000).toFixed(3), ...COLUMNS.map(c => cur[c] == null ? '' : +cur[c].toFixed(4))]);
+      hist.push([t, cur.VanosIn_deg, cur.VanosInSet_deg]); while (hist.length && t - hist[0][0] > 30000) hist.shift();
+    } catch (e) {
+      errs++; setLink('err', 'ошибка: ' + e.message);
+      if (errs === 5) msg('DME не отвечает. Зажигание включено? Попробуйте включить DTR в настройках и переподключиться.', true);
+      await sleep(300);
+    }
+  }
+}
+
+// ===== отрисовка (не чаще кадра браузера)
+const els = [...document.querySelectorAll('[data-k]')];
+function fmt(v, d) { return v == null || isNaN(v) ? '—' : v.toLocaleString('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+function render() {
+  for (const el of els) el.textContent = fmt(cur[el.dataset.k], +el.dataset.d);
+  const lagIn = Math.abs(cur.VanosInErr ?? 0);
+  $('tVin').className = 'tile wide' + (lagIn > 10 ? ' bad' : lagIn > 5 ? ' warn' : '');
+  for (const [id, k] of [['tL1', 'Lambda1'], ['tL2', 'Lambda2']]) { const v = cur[k]; $(id).className = 'tile' + (v == null ? '' : (v < 0.9 || v > 1.1) ? ' bad' : (v < 0.95 || v > 1.05) ? ' warn' : ''); }
+  const now = performance.now();
+  if (now - lastRateT > 1000) { $('stRate').textContent = (samples * 1000 / (now - lastRateT)).toFixed(1) + ' Гц'; samples = 0; lastRateT = now; }
+  if (rec) $('stRec').textContent = `● запись ${Math.round((now - rec.t0) / 1000)} с · ${rec.rows.length} строк`;
+  drawSpark(now);
+  requestAnimationFrame(render);
+}
+function drawSpark(now) {
+  const cv = $('cv'), w = cv.clientWidth, h = cv.clientHeight, dpr = devicePixelRatio || 1;
+  if (cv.width !== w * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const cs = getComputedStyle(document.documentElement);
+  const vals = hist.flatMap(r => [r[1], r[2]]).filter(v => v != null);
+  if (vals.length < 2) return;
+  let lo = Math.min(...vals) - 2, hi = Math.max(...vals) + 2;
+  const x = t => w - (now - t) / 30000 * w, y = v => h - 4 - (v - lo) / (hi - lo) * (h - 8);
+  g.strokeStyle = cs.getPropertyValue('--line'); g.lineWidth = 1; g.fillStyle = cs.getPropertyValue('--fg2'); g.font = '12px system-ui';
+  for (const v of [Math.round(lo + 2), Math.round(hi - 2)]) { g.beginPath(); g.moveTo(0, y(v)); g.lineTo(w, y(v)); g.stroke(); g.fillText(v + '°', 4, y(v) - 3); }
+  for (const [i, col] of [[2, '--set'], [1, '--acc']]) {
+    g.strokeStyle = cs.getPropertyValue(col); g.lineWidth = 2; g.beginPath(); let s = false;
+    for (const r of hist) { if (r[i] == null) continue; if (!s) { g.moveTo(x(r[0]), y(r[i])); s = true; } else g.lineTo(x(r[0]), y(r[i])); }
+    g.stroke();
+  }
+}
+requestAnimationFrame(render);
+
+function setLink(state, text) { $('dotLink').className = 'dot ' + state; $('stLink').textContent = text; }
+function onLinkLost(e) { running = false; setLink('err', 'кабель отключён'); msg('Связь с кабелем потеряна: ' + (e && e.message || ''), true); $('btnConnect').disabled = false; $('btnConnect').textContent = 'Подключить кабель'; }
+
+// ===== кнопки
+$('btnConnect').onclick = async () => {
+  if (!('usb' in navigator)) { msg('Этот браузер не умеет WebUSB. Нужен Google Chrome и адрес https://', true); return; }
+  try {
+    let dev;
+    try { dev = await navigator.usb.requestDevice({ filters: [{ vendorId: 0x0403 }] }); }
+    catch (e) { dev = await navigator.usb.requestDevice({ filters: [] }); }
+    port = new Ftdi(dev);
+    await port.open($('optDtr').checked, $('optRts').checked);
+    demo = false; running = true; $('btnConnect').disabled = true; $('btnRec').disabled = false;
+    setLink('on', 'кабель подключён'); msg('Кабель подключён: ' + (dev.productName || 'USB') + '. Опрашиваю DME…');
+    pollLoop();
+  } catch (e) { msg('Не удалось подключить: ' + e.message, true); }
+};
+$('btnDemo').onclick = () => { if (running) return; demo = true; running = true; $('btnRec').disabled = false; msg('Демо-режим: данные выдуманные, чтобы проверить экран без машины.'); pollLoop(); };
+$('btnRec').onclick = () => {
+  if (!rec) {
+    rec = { t0: performance.now(), name: ($('runName').value || 'run').replace(/[^\w-]+/g, '_'), started: new Date(), rows: [] };
+    $('btnRec').textContent = 'Стоп'; $('btnRec').className = 'rec'; $('btnSave').hidden = true; $('dotLink').classList.add('rec');
+  } else {
+    const r = rec; rec = null; window.lastLog = r;
+    $('btnRec').textContent = 'Начать лог'; $('btnRec').className = ''; $('stRec').textContent = `лог готов: ${r.rows.length} строк`;
+    $('btnSave').hidden = false; saveBackup(r);
+  }
+};
+$('btnSave').onclick = () => saveLog(window.lastLog);
+
+function toCsv(r) { return '﻿Time_s;' + COLUMNS.join(';') + '\n' + r.rows.map(x => x.join(';')).join('\n') + '\n'; }
+function fileName(r) { const d = r.started, p = n => String(n).padStart(2, '0'); return `m54_${r.name}_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.csv`; }
+async function saveLog(r) {
+  if (!r) return;
+  const file = new File([toCsv(r)], fileName(r), { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.append(a); a.click(); a.remove();
+  msg('Сохранено в «Загрузки» (Download): ' + file.name + '. Перенести на компьютер: флешкой через файловый менеджер магнитолы или по Bluetooth на телефон.');
+}
+// резервная копия последнего лога в браузере (на случай, если вкладку закроют до сохранения)
+function saveBackup(r) { try { localStorage.setItem('m54_last_log', JSON.stringify({ name: r.name, started: r.started, rows: r.rows })); } catch (e) {} }
+try { const b = JSON.parse(localStorage.getItem('m54_last_log') || 'null'); if (b && b.rows && b.rows.length) { b.started = new Date(b.started); window.lastLog = b; $('btnSave').hidden = false; $('stRec').textContent = `есть несохранённый лог: ${b.rows.length} строк`; } } catch (e) {}
+
+// ===== демо-данные
+function demoFrame(o, t) {
+  const s = t / 1000, ph = (Math.sin(s / 6) + 1) / 2;
+  o.RPM = 800 + ph * 3800; o.Speed_kmh = Math.round(ph * 90); o.Pedal_pct = ph * 80; o.Throttle_deg = ph * 70; o.MAF_kgh = 13 + ph * 300;
+  o.Load_mg = 95 + ph * 350; o.Inj_ms = 2.3 + ph * 8; o.Ign_deg = 18 + ph * 8;
+  o.VanosInSet_deg = 113 - Math.sin(Math.min(1, ph * 1.6) * Math.PI) * 28; o.VanosIn_deg = (o.VanosIn_deg ?? 113) + (o.VanosInSet_deg - (o.VanosIn_deg ?? 113)) * 0.3;
+  o.VanosExSet_deg = -105 + ph * 12; o.VanosEx_deg = o.VanosExSet_deg + Math.sin(s) * 0.8;
+  o.Lambda1 = 1 + Math.sin(s * 2.1) * 0.03; o.Lambda2 = 1 + Math.sin(s * 1.7 + 1) * 0.03;
+  o.AdaptMul1_pct = -2.1; o.AdaptMul2_pct = -1.4; o.AdaptAdd1_ms = 0.012; o.AdaptAdd2_ms = -0.008; o.OctaneFactor = 0.98;
+  o.Coolant_C = 92; o.Oil_C = 95; o.RadOut_C = 58; o.IAT_C = 44; o.Ubatt_V = 13.9; o.Baro_hPa = 998; o.IdleInt_pct = 0.5;
+}
+</script>
+</body>
+</html>
