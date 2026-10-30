@@ -506,6 +506,16 @@ function drawGauges(now) {
   g.fillText(cool == null ? '—' : Math.round(cool), xs[0], y2 - r2 * 0.05);
   g.fillText(atf == null ? '—' : Math.round(atf), xs[1], y2 - r2 * 0.05);
   g.fillText(oil == null ? '—' : Math.round(oil), xs[2], y2 - r2 * 0.05);
+  // селектор АКПП между циферблатами: P R N D/S и передача 1–5
+  const gx = w * 0.5, gy0 = cy - R * 0.95, gh = R * 1.9, items = ['P', 'R', 'N', 'D', 'S', '1', '2', '3', '4', '5'];
+  const sel = cur.GearSel, gear = cur.Gear;
+  g.font = `600 ${Math.round(R * 0.16)}px system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  items.forEach((it, i) => {
+    const y = gy0 + gh * (i + 0.5) / items.length, on = it === sel || (sel === 'D' || sel === 'S') && it === String(gear);
+    if (on) { g.fillStyle = cs.acc; g.beginPath(); g.roundRect(gx - R * 0.14, y - gh / items.length * 0.42, R * 0.28, gh / items.length * 0.84, 6); g.fill(); }
+    g.fillStyle = on ? '#fff' : cs.fg2; g.globalAlpha = on ? 1 : .55; g.fillText(it, gx, y); g.globalAlpha = 1;
+  });
+  if (sel == null) { g.fillStyle = cs.fg2; g.font = '11px system-ui'; g.fillText('нет данных EGS', gx, gy0 + gh + 12); }
   // строка снизу/сверху: расход, лямбда, напряжение, отсечка, запись
   g.fillStyle = cs.fg2; g.font = '14px system-ui'; g.textAlign = 'left';
   const line = [`λ ${fmt(cur.Lambda1, 2)}`, `${fmt(cur.Fuel_lh, 1)} л/ч`, cur.Fuel_l100 != null ? `${fmt(cur.Fuel_l100, 1)} л/100` : null, `${fmt(cur.Ubatt_V, 1)} В`, cur.Dfco ? `отсечка ${cur.Dfco}` : null].filter(Boolean).join('   ·   ');
@@ -726,6 +736,7 @@ function demoFrame(o, t) {
   else if (cyc < 34) { ped = 25; spd = 40 + Math.sin((cyc - 26) * 1.2) * 8; } // крейсер
   else { ped = 0; spd = Math.max(0, 40 - (cyc - 34) * 8); }            // торможение
   gear = spd < 25 ? 1 : spd < 55 ? 2 : spd < 85 ? 3 : 4;
+  o.GearSel = cyc < 2 ? 'P' : 'D'; o.Gear = cyc < 2 ? null : gear;
   const ratio = [0, 110, 62, 40, 28][gear];
   const rpmDrive = spd > 2 ? spd * ratio : 0;
   o.Speed_kmh = Math.round(spd); o.Pedal_pct = ped; o.Throttle_deg = ped * 0.9;
