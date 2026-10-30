@@ -14,7 +14,17 @@ html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-a
 body{padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 16px max(12px,env(safe-area-inset-left))}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
 .bar h1{font-size:18px;margin:0 8px 0 0;font-weight:600}
-button,input{font:inherit;font-size:16px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:10px 16px;min-height:46px}
+button,input,select{font:inherit;font-size:16px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:10px 16px;min-height:46px}
+select{max-width:260px}
+.tile.ok .v{color:var(--ok)}
+.test{display:none;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin-top:8px;font-size:15px;line-height:1.5}
+.test.on{display:block}
+.test b{font-variant-numeric:tabular-nums}
+pre.rep{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word;margin:8px 0;color:var(--fg)}
+pre.rep .h{color:var(--acc);font-weight:600}
+pre.rep .w{color:var(--warn)}
+pre.rep .b{color:var(--bad)}
+pre.rep .g{color:var(--ok)}
 button{cursor:pointer;font-weight:600}
 button.primary{background:var(--acc);border-color:var(--acc);color:#fff}
 button.rec{background:var(--bad);border-color:var(--bad);color:#fff}
@@ -49,7 +59,13 @@ details input[type=checkbox]{width:22px;height:22px;min-height:0}
 <div class="bar">
   <h1>M54 Live</h1>
   <button id="btnConnect" class="primary">Подключить кабель</button>
-  <input id="runName" value="city" aria-label="Название заезда">
+  <select id="runName" aria-label="Тип заезда">
+    <option value="city">Город</option>
+    <option value="wot">Полный газ (2-я, 1500→отсечка)</option>
+    <option value="coast">Накат (педаль 0, с 3000 об)</option>
+    <option value="idle">Холостой</option>
+    <option value="hwy">Трасса</option>
+  </select>
   <button id="btnRec" disabled>Начать лог</button>
   <button id="btnSave" hidden>Сохранить лог</button>
   <div class="status">
@@ -69,8 +85,12 @@ details input[type=checkbox]{width:22px;height:22px;min-height:0}
   <div class="tile"><div class="k">Нагрузка</div><div class="v"><span data-k="Load_mg" data-d="0">—</span><span class="u">мг/т</span></div></div>
   <div class="tile"><div class="k">Впрыск</div><div class="v"><span data-k="Inj_ms" data-d="2">—</span><span class="u">мс</span></div></div>
   <div class="tile"><div class="k">Угол зажигания</div><div class="v"><span data-k="Ign_deg" data-d="1">—</span><span class="u">°</span></div></div>
-  <div class="tile"><div class="k">Расход сейчас</div><div class="v"><span data-k="Fuel_lh" data-d="1">—</span><span class="u">л/ч</span></div><div class="s"><span data-k="Fuel_l100" data-d="1">—</span> л/100</div></div>
+  <div class="tile"><div class="k">Расход (по впрыску)</div><div class="v"><span data-k="Fuel_lh" data-d="1">—</span><span class="u">л/ч</span></div><div class="s"><span data-k="Fuel_l100" data-d="1">—</span> л/100 · по ДМРВ <span data-k="FuelMaf_lh" data-d="1">—</span> л/ч</div></div>
+  <div class="tile" id="tDfco"><div class="k">Отсечка на сбросе</div><div class="v" id="vDfco">—</div><div class="s" id="sDfco">педаль 0, &gt;1500 об</div></div>
+  <div class="tile"><div class="k">Детонация 2 / 5</div><div class="v"><span data-k="Knock2_V" data-d="2">—</span><span class="u">В</span></div><div class="s"><span data-k="Knock5_V" data-d="2">—</span> В</div></div>
+  <div class="tile"><div class="k">Регулятор ХХ</div><div class="v"><span data-k="IdleInt_pct" data-d="1">—</span><span class="u">%</span></div></div>
 </div>
+<div class="test" id="testBox"></div>
 
 <h2>VANOS — факт / цель</h2>
 <div class="grid">
@@ -100,12 +120,29 @@ details input[type=checkbox]{width:22px;height:22px;min-height:0}
   <div class="tile"><div class="k">Напряжение</div><div class="v"><span data-k="Ubatt_V" data-d="1">—</span><span class="u">В</span></div></div>
 </div>
 
+<h2>Разбор лога</h2>
+<div class="bar">
+  <button id="btnAnLast">Разобрать последний лог</button>
+  <label><input type="file" id="anFile" accept=".csv,text/csv" style="min-height:0;padding:8px"></label>
+  <button id="btnCopy" hidden>Скопировать отчёт</button>
+</div>
+<div class="msg" id="anMsg">Разбирает CSV этой же страницы: коррекции, лямбда по режимам, расход, отсечка, полный газ. Отчёт можно скопировать и отправить.</div>
+<pre class="rep" id="rep" hidden></pre>
+
 <details>
-  <summary>Настройки кабеля</summary>
+  <summary>Настройки</summary>
+  <label>Форсунки
+    <select id="optInj">
+      <option value="237">237 см³ — родные 2.5 (1427240)</option>
+      <option value="254">254 см³ — от 3.0 (1439800)</option>
+      <option value="214">214 см³ — N52 (7531634)</option>
+    </select>
+  </label>
   <label><input type="checkbox" id="optDtr"> DTR</label>
   <label><input type="checkbox" id="optRts"> RTS</label>
   <label><input type="checkbox" id="optVanos" checked> Опрашивать цели VANOS</label>
   <label><button id="btnDemo">Демо без машины</button></label>
+  <p>Расход «по впрыску» считается из времени открытия форсунок (минус ~1 мс мёртвого времени) и их производительности при 3.5 бар — выберите те, что реально стоят. «По ДМРВ» — из воздуха при лямбде 1, на сбросе газа и при обогащении врёт.</p>
   <p>DTR/RTS переключают режим у некоторых кабелей K+DCAN. Если DME не отвечает — попробуйте включить DTR и переподключиться.</p>
 </details>
 
@@ -221,10 +258,52 @@ let port = null, running = false, demo = false;
 const cur = {}; let rec = null; const hist = [];
 let samples = 0, lastRateT = performance.now(), errs = 0;
 
+// ===== расчёт топлива: 6 цилиндров, впрыск раз в два оборота, мёртвое время ~1 мс
+const INJ_DEAD_MS = 1.0;
+function injFlow() { return +($('optInj').value || 237); }                         // см³/мин при 3.5 бар
+function fuelLh(rpm, inj, flow) { return 6 * rpm / 120 * Math.max(0, inj - INJ_DEAD_MS) * flow / 60000 * 3.6; } // л/ч
 function derived(o) {
-  if (o.MAF_kgh != null) { o.Fuel_lh = o.MAF_kgh / 14.7 / 0.745; o.Fuel_l100 = o.Speed_kmh > 3 ? o.Fuel_lh / o.Speed_kmh * 100 : null; }
+  if (o.MAF_kgh != null) o.FuelMaf_lh = o.MAF_kgh / 14.7 / 0.745;
+  if (o.RPM != null && o.Inj_ms != null) { o.Fuel_lh = fuelLh(o.RPM, o.Inj_ms, injFlow()); o.Fuel_l100 = o.Speed_kmh > 3 ? o.Fuel_lh / o.Speed_kmh * 100 : null; }
   if (o.VanosInSet_deg != null) o.VanosInErr = o.VanosIn_deg - o.VanosInSet_deg;
   if (o.VanosExSet_deg != null) o.VanosExErr = o.VanosEx_deg - o.VanosExSet_deg;
+  dfco(o);
+}
+// отсечка: педаль 0 и обороты выше 1500 — DME должна убрать впрыск в ноль через 1–2 с
+let dfcoT0 = null;
+function dfco(o) {
+  const coast = o.Pedal_pct != null && o.Pedal_pct < 1 && o.RPM > 1500;
+  const now = performance.now();
+  if (!coast) { dfcoT0 = null; o.Dfco = null; return; }
+  if (dfcoT0 == null) dfcoT0 = now;
+  const cut = o.Inj_ms < 0.3;
+  o.Dfco = cut ? 'да' : (now - dfcoT0 > 2500 ? 'НЕТ' : '…');
+  o.DfcoT = (now - dfcoT0) / 1000;
+}
+
+// ===== сводка по тесту во время записи
+const test = { wot: null, coast: null };
+function testFrame(o, kind) {
+  if (kind === 'wot') {
+    const t = test.wot || (test.wot = { n: 0, loadMax: 0, mafMax: 0, rpmAtLoadMax: 0, lam: [], ign: [], ignMin: 99, knock: 0 });
+    if (o.Pedal_pct > 75) {
+      t.n++; if (o.Load_mg > t.loadMax) { t.loadMax = o.Load_mg; t.rpmAtLoadMax = o.RPM; }
+      t.mafMax = Math.max(t.mafMax, o.MAF_kgh); t.knock = Math.max(t.knock, o.Knock2_V || 0, o.Knock5_V || 0);
+      if (o.RPM > 3000) { t.lam.push(o.Lambda1); t.ign.push(o.Ign_deg); t.ignMin = Math.min(t.ignMin, o.Ign_deg); }
+    }
+    const avg = a => a.length ? (a.reduce((s, v) => s + v, 0) / a.length) : null;
+    $('testBox').innerHTML = `<b>Полный газ</b> — держите педаль в пол, пока не сработает отсечка. Точек с педалью &gt;75%: <b>${t.n}</b><br>` +
+      `Нагрузка макс <b>${t.loadMax.toFixed(0)}</b> мг/т на <b>${Math.round(t.rpmAtLoadMax)}</b> об · ДМРВ макс <b>${t.mafMax.toFixed(0)}</b> кг/ч<br>` +
+      `Выше 3000 об: лямбда <b>${fmt(avg(t.lam), 3)}</b> (цель 0.85–0.90) · УОЗ средн <b>${fmt(avg(t.ign), 1)}</b>° мин <b>${t.n && t.ignMin < 99 ? t.ignMin.toFixed(1) : '—'}</b>° · детонация макс <b>${t.knock.toFixed(2)}</b> В`;
+  } else if (kind === 'coast') {
+    const t = test.coast || (test.coast = { n: 0, cutN: 0, injMin: 99, lam: [], rpm: [] });
+    if (o.Pedal_pct < 1 && o.RPM > 1500 && o.Speed_kmh > 15) {
+      t.n++; if (o.Inj_ms < 0.3) t.cutN++; t.injMin = Math.min(t.injMin, o.Inj_ms); t.lam.push(o.Lambda1); t.rpm.push(o.RPM);
+    }
+    const verdict = t.n < 10 ? 'ещё мало данных' : t.cutN > t.n * 0.3 ? '<span style="color:var(--ok)">отсечка работает</span>' : '<span style="color:var(--bad)">отсечки НЕТ — DME льёт на накате</span>';
+    $('testBox').innerHTML = `<b>Накат</b> — разгон до 3000 об, педаль полностью отпустить, катиться 5–6 с. Точек наката: <b>${t.n}</b>, с впрыском 0: <b>${t.cutN}</b><br>` +
+      `Впрыск мин <b>${t.n ? t.injMin.toFixed(2) : '—'}</b> мс · лямбда на накате средн <b>${fmt(t.lam.length ? t.lam.reduce((s, v) => s + v, 0) / t.lam.length : null, 3)}</b> (при отсечке датчик уходит &gt;1.3)<br>${verdict}`;
+  }
 }
 
 async function pollLoop() {
@@ -240,7 +319,7 @@ async function pollLoop() {
       }
       derived(cur); errs = 0; samples++;
       setLink('on', demo ? 'демо' : 'DME отвечает');
-      if (rec) rec.rows.push([((t - rec.t0) / 1000).toFixed(3), ...COLUMNS.map(c => cur[c] == null ? '' : +cur[c].toFixed(4))]);
+      if (rec) { rec.rows.push([((t - rec.t0) / 1000).toFixed(3), ...COLUMNS.map(c => cur[c] == null ? '' : +cur[c].toFixed(4))]); if (rec.name === 'wot' || rec.name === 'coast') testFrame(cur, rec.name); }
       hist.push([t, cur.VanosIn_deg, cur.VanosInSet_deg]); while (hist.length && t - hist[0][0] > 30000) hist.shift();
     } catch (e) {
       errs++; setLink('err', 'ошибка: ' + e.message);
@@ -258,6 +337,9 @@ function render() {
   const lagIn = Math.abs(cur.VanosInErr ?? 0);
   $('tVin').className = 'tile wide' + (lagIn > 10 ? ' bad' : lagIn > 5 ? ' warn' : '');
   for (const [id, k] of [['tL1', 'Lambda1'], ['tL2', 'Lambda2']]) { const v = cur[k]; $(id).className = 'tile' + (v == null ? '' : (v < 0.9 || v > 1.1) ? ' bad' : (v < 0.95 || v > 1.05) ? ' warn' : ''); }
+  $('vDfco').textContent = cur.Dfco ?? '—';
+  $('sDfco').textContent = cur.Dfco == null ? 'педаль 0, >1500 об' : `накат ${cur.DfcoT.toFixed(1)} с · впрыск ${fmt(cur.Inj_ms, 2)} мс`;
+  $('tDfco').className = 'tile' + (cur.Dfco === 'да' ? ' ok' : cur.Dfco === 'НЕТ' ? ' bad' : '');
   const now = performance.now();
   if (now - lastRateT > 1000) { $('stRate').textContent = (samples * 1000 / (now - lastRateT)).toFixed(1) + ' Гц'; samples = 0; lastRateT = now; }
   if (rec) $('stRec').textContent = `● запись ${Math.round((now - rec.t0) / 1000)} с · ${rec.rows.length} строк`;
@@ -304,14 +386,152 @@ $('btnDemo').onclick = () => { if (running) return; demo = true; running = true;
 $('btnRec').onclick = () => {
   if (!rec) {
     rec = { t0: performance.now(), name: ($('runName').value || 'run').replace(/[^\w-]+/g, '_'), started: new Date(), rows: [] };
+    test.wot = test.coast = null; $('testBox').className = 'test' + (rec.name === 'wot' || rec.name === 'coast' ? ' on' : ''); $('testBox').textContent = '';
     $('btnRec').textContent = 'Стоп'; $('btnRec').className = 'rec'; $('btnSave').hidden = true; $('dotLink').classList.add('rec');
   } else {
     const r = rec; rec = null; window.lastLog = r;
     $('btnRec').textContent = 'Начать лог'; $('btnRec').className = ''; $('stRec').textContent = `лог готов: ${r.rows.length} строк`;
     $('btnSave').hidden = false; saveBackup(r);
+    analyze(r.rows.map(x => x.map(Number)), fileName(r));
   }
 };
 $('btnSave').onclick = () => saveLog(window.lastLog);
+$('optInj').onchange = () => { try { localStorage.setItem('m54_inj', $('optInj').value); } catch (e) {} };
+try { const v = localStorage.getItem('m54_inj'); if (v) $('optInj').value = v; } catch (e) {}
+
+// ===== разбор лога (CSV этой страницы: Time_s;RPM;…)
+function parseCsv(text) {
+  const lines = text.replace(/^﻿/, '').trim().split(/\r?\n/);
+  const head = lines[0].split(';').map(s => s.trim());
+  const rows = lines.slice(1).map(l => l.split(';').map(v => v === '' ? NaN : +v)).filter(r => r.length === head.length);
+  return { head, rows };
+}
+$('btnAnLast').onclick = () => { const r = window.lastLog; if (!r) { $('anMsg').textContent = 'Пока нет записанного лога.'; return; } analyze(r.rows.map(x => x.map(Number)), fileName(r)); };
+$('anFile').onchange = async e => { const f = e.target.files[0]; if (!f) return; const p = parseCsv(await f.text()); analyze(p.rows, f.name, p.head); };
+$('btnCopy').onclick = async () => { try { await navigator.clipboard.writeText($('rep').textContent); $('anMsg').textContent = 'Отчёт скопирован.'; } catch (e) { $('anMsg').textContent = 'Не удалось скопировать — выделите текст вручную.'; } };
+
+function analyze(rows, name, head) {
+  const H = head || ['Time_s', ...COLUMNS];
+  const ix = {}; H.forEach((h, i) => ix[h] = i);
+  const need = ['Time_s', 'RPM', 'Speed_kmh', 'Pedal_pct', 'MAF_kgh', 'Load_mg', 'Inj_ms', 'Ign_deg', 'Lambda1', 'Coolant_C'];
+  const miss = need.filter(k => ix[k] == null);
+  if (miss.length || rows.length < 10) { $('anMsg').textContent = 'Это не лог этой страницы или он пустой (нет ' + (miss.join(', ') || 'строк') + ').'; return; }
+  const g = (r, k) => r[ix[k]];
+  const flow = injFlow();
+  const mean = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : NaN;
+  const sel = f => rows.filter(f);
+  const col = (a, k) => a.map(r => g(r, k)).filter(v => !isNaN(v));
+  const m = (a, k, d = 1) => fmt(mean(col(a, k)), d);
+  const mx = (a, k) => a.length ? Math.max(...col(a, k)) : NaN;
+  const mn = (a, k) => a.length ? Math.min(...col(a, k)) : NaN;
+  const out = [];
+  const L = (s, cls) => out.push(cls ? `<span class="${cls}">${s}</span>` : s);
+  const esc = s => String(s);
+
+  // общее
+  let T = 0, dist = 0, fuel = 0, idleT = 0, idleFuel = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i], dt = Math.min(1, Math.max(0, g(r, 'Time_s') - g(rows[i - 1], 'Time_s')));
+    T += dt; dist += g(r, 'Speed_kmh') / 3600 * dt;
+    const f = fuelLh(g(r, 'RPM'), g(r, 'Inj_ms'), flow) / 3600 * dt; fuel += f;
+    if (g(r, 'Speed_kmh') < 1) { idleT += dt; idleFuel += f; }
+  }
+  const cool0 = g(rows[0], 'Coolant_C'), cool1 = g(rows[rows.length - 1], 'Coolant_C');
+  L(`<span class="h">${esc(name)}</span> — ${rows.length} строк, ${T.toFixed(0)} с, форсунки ${flow} см³`);
+  L(`Мотор ${fmt(cool0, 0)}→${fmt(cool1, 0)} °C · путь ${dist.toFixed(2)} км · средняя ${fmt(T ? dist / T * 3600 : NaN, 1)} км/ч · стоим ${fmt(T ? idleT / T * 100 : NaN, 0)}% времени`);
+  if (dist > 0.3) L(`Расход по впрыску: <b>${(fuel / dist * 100).toFixed(1)} л/100</b> (${fuel.toFixed(2)} л), из них на стоянке ${(idleFuel / Math.max(fuel, 1e-6) * 100).toFixed(0)}% · на ХХ ${fmt(idleT ? idleFuel / idleT * 3600 : NaN, 2)} л/ч`);
+  else L(`Расход на месте: ${fmt(idleT ? idleFuel / idleT * 3600 : NaN, 2)} л/ч`);
+
+  // адаптации
+  if (ix.AdaptMul1_pct != null) {
+    const last = rows[rows.length - 1];
+    const mul1 = g(last, 'AdaptMul1_pct'), mul2 = g(last, 'AdaptMul2_pct'), add1 = g(last, 'AdaptAdd1_ms'), add2 = g(last, 'AdaptAdd2_ms');
+    L('');
+    L('<span class="h">Адаптации</span>');
+    L(`Мульт. банк 1 ${fmt(mul1, 1)}% · банк 2 ${fmt(mul2, 1)}% · адд. ${fmt(add1, 3)} / ${fmt(add2, 3)} мс`);
+    const big = Math.max(Math.abs(mul1), Math.abs(mul2));
+    if (big > 8) L('Мультипликативная за ±8% — DME на пределе, искать причину (форсунки/давление/ДМРВ/подсос).', 'b');
+    else if (big > 4) L(`Мультипликативная ${mul1 < 0 ? 'в минусе — под нагрузкой топлива больше, чем ждёт прошивка (форсунки крупнее/давление выше)' : 'в плюсе — не хватает топлива (подсос/ДМРВ занижает/давление низкое)'}.`, 'w');
+    else L('Мультипликативная в норме (±4%).', 'g');
+    if (Math.abs(mul1 - mul2) > 1.5) L(`Разница банков ${Math.abs(mul1 - mul2).toFixed(1)}% — давление и ДМРВ общие, разницу дают форсунки или лямбда-зонды.`, 'w');
+    const base = 3.0; L(`Итог на ХХ (≈3 мс): ${((base * (1 + mul1 / 100) + add1) / base * 100 - 100).toFixed(1)}% · под нагрузкой (≈8 мс): ${((8 * (1 + mul1 / 100) + add1) / 8 * 100 - 100).toFixed(1)}%`);
+    if (ix.OctaneFactor != null) { const oct = mx(rows, 'OctaneFactor'); L(`Октан-адаптация ${fmt(oct, 2)} ${oct > 0.3 ? '— DME видит детонацию и отступает' : '— детонации не видит'}`, oct > 0.3 ? 'w' : 'g'); }
+  }
+
+  // холостой
+  const idle = sel(r => g(r, 'Speed_kmh') < 1 && g(r, 'Pedal_pct') < 1 && g(r, 'RPM') < 1100);
+  L(''); L('<span class="h">Холостой</span>');
+  for (const [lo, hi, nm] of [[-50, 60, 'холодный <60°'], [60, 80, '60–80°'], [80, 120, 'прогретый >80°']]) {
+    const s = idle.filter(r => g(r, 'Coolant_C') >= lo && g(r, 'Coolant_C') < hi);
+    if (s.length > 5) L(`${nm}: ${m(s, 'RPM', 0)} об · ДМРВ ${m(s, 'MAF_kgh', 1)} кг/ч · нагрузка ${m(s, 'Load_mg', 0)} мг · впрыск ${m(s, 'Inj_ms', 2)} мс · УОЗ ${m(s, 'Ign_deg', 1)}° · λ ${m(s, 'Lambda1', 3)}${ix.IdleInt_pct != null ? ' · регулятор ' + m(s, 'IdleInt_pct', 1) + '%' : ''}`);
+  }
+  const warmIdle = idle.filter(r => g(r, 'Coolant_C') >= 80);
+  if (warmIdle.length > 5) { const maf = mean(col(warmIdle, 'MAF_kgh')); if (maf > 19) L('ДМРВ на прогретом ХХ > 19 кг/ч — многовато даже для D: подсос/клапан КВКГ/нагрузка от навесного.', 'w'); }
+
+  // лямбда по режимам
+  L(''); L('<span class="h">Смесь по режимам (λ банк 1)</span>');
+  for (const [nm, f] of [['холодный <65°, газ', r => g(r, 'Coolant_C') < 65 && g(r, 'Pedal_pct') > 5], ['прогретый, газ', r => g(r, 'Coolant_C') >= 65 && g(r, 'Pedal_pct') > 5]]) {
+    const s = sel(f); if (s.length < 10) continue;
+    const rich = s.filter(r => g(r, 'Lambda1') < 0.9).length;
+    L(`${nm}: λ ${m(s, 'Lambda1', 3)}, богаче 0.9 — ${(rich / s.length * 100).toFixed(0)}% точек (${s.length})`);
+  }
+  const warm = sel(r => g(r, 'Coolant_C') >= 65 && g(r, 'Pedal_pct') > 5);
+  for (const [lo, hi] of [[700, 1200], [1200, 1800], [1800, 2500], [2500, 3500], [3500, 4500], [4500, 7000]]) {
+    const s = warm.filter(r => g(r, 'RPM') >= lo && g(r, 'RPM') < hi); if (s.length < 5) continue;
+    L(`  ${lo}–${hi}: λ ${m(s, 'Lambda1', 3)} · педаль ${m(s, 'Pedal_pct', 0)}% · ДМРВ ${m(s, 'MAF_kgh', 0)} · нагрузка ${m(s, 'Load_mg', 0)} · УОЗ ${m(s, 'Ign_deg', 1)}° (${s.length})`);
+  }
+
+  // накат / отсечка
+  const coast = sel(r => g(r, 'Pedal_pct') < 1 && g(r, 'RPM') > 1800 && g(r, 'Speed_kmh') > 20);
+  L(''); L('<span class="h">Накат (педаль 0, >1800 об, >20 км/ч)</span>');
+  if (coast.length < 5) L('мало точек — запишите тест «Накат»');
+  else {
+    const cut = coast.filter(r => g(r, 'Inj_ms') < 0.3).length;
+    L(`${coast.length} точек, впрыск 0 в ${cut} · впрыск мин ${fmt(mn(coast, 'Inj_ms'), 2)} мс · λ ${m(coast, 'Lambda1', 3)}`);
+    if (cut === 0 && coast.length > 15) L('Отсечка ни разу не сработала — на накате DME льёт топливо. В городе это 1–2 л/100. Проверить тестом «Накат» 5–6 с.', 'b');
+    else if (cut > 0) L('Отсечка работает.', 'g');
+    else L('Сбросы короткие, отсечка не успела включиться — не вывод. Тест «Накат».', 'w');
+  }
+
+  // полный газ
+  const wot = sel(r => g(r, 'Pedal_pct') > 75);
+  L(''); L('<span class="h">Полный газ (педаль >75%)</span>');
+  if (wot.length < 5) L(`нет (макс педаль ${fmt(mx(rows, 'Pedal_pct'), 0)}%) — для «тупит внизу» нужен тест «Полный газ»`);
+  else {
+    const hi = wot.filter(r => g(r, 'RPM') > 3000);
+    L(`${wot.length} точек, ${fmt(mn(wot, 'RPM'), 0)}–${fmt(mx(wot, 'RPM'), 0)} об · нагрузка макс ${fmt(mx(wot, 'Load_mg'), 0)} мг · ДМРВ макс ${fmt(mx(wot, 'MAF_kgh'), 0)} кг/ч`);
+    for (const [lo, h2] of [[1500, 2500], [2500, 3500], [3500, 4500], [4500, 5500], [5500, 7000]]) {
+      const s = wot.filter(r => g(r, 'RPM') >= lo && g(r, 'RPM') < h2); if (s.length < 2) continue;
+      L(`  ${lo}–${h2}: нагрузка ${m(s, 'Load_mg', 0)} · ДМРВ ${m(s, 'MAF_kgh', 0)} · λ ${m(s, 'Lambda1', 3)} · УОЗ ${m(s, 'Ign_deg', 1)}°${ix.VanosIn_deg != null ? ' · VANOS вп ' + m(s, 'VanosIn_deg', 0) + '°' : ''}`);
+    }
+    if (hi.length > 3) {
+      const lam = mean(col(hi, 'Lambda1'));
+      if (lam > 0.95) L('На полном газу λ ≈ 1 — прошивка не обогащает, мотор недодаёт и греет выпуск.', 'w');
+      else if (lam < 0.82) L('На полном газу λ < 0.82 — переобогащение (форсунки крупнее, чем в прошивке?).', 'w');
+      else L('Обогащение на полном газу в норме.', 'g');
+      const load = mx(hi, 'Load_mg'); if (load < 650) L(`Нагрузка на полном газу всего ${load.toFixed(0)} мг — мотор не наполняется: DISA, впуск, ДМРВ, фазы, выпуск.`, 'b');
+    }
+  }
+
+  // зажигание и детонация
+  const load = sel(r => g(r, 'Pedal_pct') > 10 && g(r, 'RPM') > 1500);
+  L(''); L('<span class="h">Зажигание / детонация</span>');
+  if (load.length > 10) {
+    L(`Под нагрузкой >1500 об: УОЗ средн ${m(load, 'Ign_deg', 1)}°, мин ${fmt(mn(load, 'Ign_deg'), 1)}°${ix.Knock2_V != null ? ` · датчики макс ${fmt(mx(rows, 'Knock2_V'), 2)} / ${fmt(mx(rows, 'Knock5_V'), 2)} В` : ''}`);
+    const drops = load.filter(r => g(r, 'Ign_deg') < 5);
+    if (drops.length) L(`${drops.length} точек с УОЗ < 5° под нагрузкой (${drops.slice(0, 4).map(r => `${g(r, 'RPM')} об/${fmt(g(r, 'Ign_deg'), 1)}°`).join(', ')}) — одиночные при детонации <1 В обычно срез момента АКПП на переключении.`, 'w');
+  }
+  if (ix.VanosInSet_deg != null) {
+    const e1 = mean(rows.map(r => Math.abs(g(r, 'VanosIn_deg') - g(r, 'VanosInSet_deg'))).filter(v => !isNaN(v)));
+    const e2 = mean(rows.map(r => Math.abs(g(r, 'VanosEx_deg') - g(r, 'VanosExSet_deg'))).filter(v => !isNaN(v)));
+    L(`VANOS: ошибка впуск ${fmt(e1, 1)}° · выпуск ${fmt(e2, 1)}° ${e1 > 5 || e2 > 5 ? '— отстаёт' : '— держит цель'}`, e1 > 5 || e2 > 5 ? 'w' : 'g');
+  }
+  if (ix.Ubatt_V != null) { const u = mn(rows, 'Ubatt_V'); if (u < 12.8) L(`Напряжение проседало до ${u.toFixed(1)} В — генератор/ремень/АКБ, влияет на мёртвое время форсунок.`, 'w'); }
+
+  $('rep').innerHTML = out.join('\n'); $('rep').hidden = false; $('btnCopy').hidden = false;
+  $('anMsg').textContent = 'Готово. Скопируйте отчёт, чтобы отправить.';
+  $('rep').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 function toCsv(r) { return '﻿Time_s;' + COLUMNS.join(';') + '\n' + r.rows.map(x => x.join(';')).join('\n') + '\n'; }
 function fileName(r) { const d = r.started, p = n => String(n).padStart(2, '0'); return `m54_${r.name}_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.csv`; }
@@ -335,6 +555,8 @@ function demoFrame(o, t) {
   o.Lambda1 = 1 + Math.sin(s * 2.1) * 0.03; o.Lambda2 = 1 + Math.sin(s * 1.7 + 1) * 0.03;
   o.AdaptMul1_pct = -2.1; o.AdaptMul2_pct = -1.4; o.AdaptAdd1_ms = 0.012; o.AdaptAdd2_ms = -0.008; o.OctaneFactor = 0.98;
   o.Coolant_C = 92; o.Oil_C = 95; o.RadOut_C = 58; o.IAT_C = 44; o.Ubatt_V = 13.9; o.Baro_hPa = 998; o.IdleInt_pct = 0.5;
+  o.Knock2_V = 0.2 + ph * 0.6; o.Knock5_V = 0.25 + ph * 0.5;
+  if (o.Pedal_pct < 1 && o.RPM > 1500) o.Inj_ms = 0;
 }
 </script>
 </body>
