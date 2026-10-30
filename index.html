@@ -184,7 +184,7 @@ body.fs{padding:6px}body.fs .bar,body.fs .msg,body.fs .tabs{display:none}body.fs
   <label><button id="ghTest">Проверить</button></label>
   <p id="ghMsg" class="msg"></p>
   <h2>DS2-консоль (другие блоки)</h2>
-  <p>Чтобы вывести скорости колёс (DSC), климат (IHKA) и температуру АКПП (EGS), нужно найти раскладку их ответов. Выберите блок, нажмите «Опросить» — ниже сырые байты. Байты, которые меняются при вращении колёс / смене температуры — и есть нужные. Запишите, какие позиции что показывают.</p>
+  <p>Чтобы вывести скорости колёс (DSC), климат (IHKA) и температуру АКПП (EGS), нужно найти раскладку их ответов. Выберите блок, нажмите «Опросить» — ниже сырые байты. Байты, которые меняются при вращении колёс / смене температуры — и есть нужные. Если включить «постоянно» и вести запись лога, байты пишутся в отдельный файл <code>…_ds2_XX.csv</code> рядом с логом и уходят в GitHub — раскладку можно найти по нему.</p>
   <div class="bar" style="margin:0">
     <select id="dsAddr">
       <option value="56">DSC 0x56 (скорости колёс)</option>
@@ -570,13 +570,14 @@ function startDemo() { if (running) { if (demo) { running = false; demo = false;
 $('btnDemo').onclick = startDemo; $('btnDemo2').onclick = startDemo;
 $('btnRec').onclick = () => {
   if (!rec) {
-    rec = { t0: performance.now(), name: ($('runName').value || 'run').replace(/[^\w-]+/g, '_'), started: new Date(), rows: [] };
+    rec = { t0: performance.now(), name: ($('runName').value || 'run').replace(/[^\w-]+/g, '_'), started: new Date(), rows: [], raw: [] };
     test.wot = test.coast = null; $('testBox').className = 'test' + (rec.name === 'wot' || rec.name === 'coast' ? ' on' : ''); $('testBox').textContent = '';
     $('btnRec').textContent = 'Стоп'; $('btnRec').className = 'rec'; $('btnSave').hidden = true; $('dotLink').classList.add('rec');
   } else {
     const r = rec; rec = null; window.lastLog = r;
     $('btnRec').textContent = 'Начать лог'; $('btnRec').className = ''; $('stRec').textContent = `лог готов: ${r.rows.length} строк`;
     $('btnSave').hidden = false; saveBackup(r);
+    if (r.raw.length) saveRaw(r);
     analyze(r.rows.map(x => x.map(Number)), fileName(r));
   }
 };
@@ -747,6 +748,12 @@ async function saveBackup(r) {
   renderLib();
   if (ghCfg().token) uploadLog(rec);
 }
+async function saveRaw(r) {
+  const csv = '\uFEFFTime_s;RPM;Speed_kmh;Pedal_pct;Coolant_C;Oil_C;Addr;Cmd;Bytes\n' + r.raw.map(x => x.join(';')).join('\n') + '\n';
+  const rec = { name: fileName(r).replace(/\.csv$/, '_ds2_' + r.raw[0][6] + '.csv'), started: +r.started + 1, run: r.name + '_ds2', csv, rows: r.raw.length, uploaded: false, err: '' };
+  try { await dbPut(rec); } catch (e) { return; }
+  renderLib(); if (ghCfg().token) setTimeout(() => uploadLog(rec), 1500);
+}
 // --- GitHub
 const ghCfg = () => ({ repo: ($('ghRepo').value || '').trim(), token: ($('ghToken').value || '').trim(), branch: ($('ghBranch').value || 'main').trim() });
 for (const id of ['ghRepo', 'ghToken', 'ghBranch']) { try { const v = localStorage.getItem('m54_' + id); if (v) $(id).value = v; } catch (e) {} $(id).onchange = () => { try { localStorage.setItem('m54_' + id, $(id).value.trim()); } catch (e) {} }; }
@@ -783,7 +790,7 @@ async function renderLib() {
   for (const r of list) {
     const d = document.createElement('div'); d.className = 'row';
     const st = r.uploaded ? '<span class="st up">✓ в GitHub</span>' : r.err ? `<span class="st err">ошибка: ${r.err}</span>` : '<span class="st">не отправлен</span>';
-    d.innerHTML = `<span class="n">${r.name}<br><span class="st">${new Date(r.started).toLocaleString('ru-RU')} · ${r.rows} строк</span></span>${st}<button data-a="an">Разобрать</button><button data-a="dl">Скачать</button>${r.uploaded ? '' : '<button data-a="up">Отправить</button>'}<button data-a="del">Удалить</button>`;
+    d.innerHTML = `<span class="n">${r.name}<br><span class="st">${new Date(r.started).toLocaleString('ru-RU')} · ${r.rows} строк</span></span>${st}${r.run.endsWith('_ds2') ? '' : '<button data-a="an">Разобрать</button>'}<button data-a="dl">Скачать</button>${r.uploaded ? '' : '<button data-a="up">Отправить</button>'}<button data-a="del">Удалить</button>`;
     d.onclick = async e => {
       const a = e.target.dataset.a; if (!a) return;
       const rec = await dbGet(r.name);
@@ -806,6 +813,7 @@ async function dsPoll() {
   dsBusy = true;
   try {
     const r = await ds2(port, cmd, addr);
+    if (rec) rec.raw.push([((performance.now() - rec.t0) / 1000).toFixed(3), cur.RPM ?? '', cur.Speed_kmh ?? '', cur.Pedal_pct == null ? '' : +cur.Pedal_pct.toFixed(1), cur.Coolant_C ?? '', cur.Oil_C == null ? '' : +cur.Oil_C.toFixed(1), addr.toString(16), cmd, r.map(b => b.toString(16).padStart(2, '0')).join(' ')]);
     const html = r.map((b, i) => { const h = b.toString(16).padStart(2, '0'); const ch = dsPrev && dsPrev[i] !== b; return `<span${ch ? ' class="w"' : ''}>${String(i).padStart(2)}:${h}</span>`; });
     dsPrev = r;
     $('dsOut').innerHTML = `блок ${addr.toString(16)} ← ${r.length} байт (позиция:hex, жёлтым — изменились)\n` + html.join('  ').replace(/((?:<span[^>]*>[^<]*<\/span>  ){8})/g, '$1\n')
