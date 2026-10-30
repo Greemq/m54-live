@@ -24,6 +24,11 @@ pre.rep .h{color:var(--acc);font-weight:600}
 pre.rep .w{color:var(--warn)}
 pre.rep .b{color:var(--bad)}
 pre.rep .g{color:var(--ok)}
+.lib{display:flex;flex-direction:column;gap:6px}
+.lib .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:14px}
+.lib .row .n{flex:1;min-width:180px;font-variant-numeric:tabular-nums}
+.lib .row .st{color:var(--fg2)}.lib .row .st.up{color:var(--ok)}.lib .row .st.err{color:var(--bad)}
+.lib button{min-height:36px;padding:4px 10px;font-size:14px}
 button{cursor:pointer;font-weight:600}
 button.primary{background:var(--acc);border-color:var(--acc);color:#1a1000}
 button.rec{background:var(--bad);border-color:var(--bad);color:#fff}
@@ -151,6 +156,11 @@ body.fs{padding:6px}body.fs .bar,body.fs .msg,body.fs .tabs{display:none}body.fs
 <div class="msg" id="anMsg">Разбирает CSV этой же страницы: коррекции, лямбда по режимам, расход, отсечка, полный газ. Отчёт можно скопировать и отправить.</div>
 <pre class="rep" id="rep" hidden></pre>
 
+<h2>Библиотека логов</h2>
+<div class="msg" id="libMsg">Все записи хранятся в памяти браузера и, если настроен GitHub, сами отправляются в репозиторий.</div>
+<div id="lib" class="lib"></div>
+<div class="bar" style="margin-top:6px"><button id="btnUpAll">Отправить неотправленные</button></div>
+
 <details>
   <summary>Настройки</summary>
   <label>Форсунки
@@ -166,6 +176,13 @@ body.fs{padding:6px}body.fs .bar,body.fs .msg,body.fs .tabs{display:none}body.fs
   <label><button id="btnDemo">Демо без машины</button></label>
   <p>Расход «по впрыску» считается из времени открытия форсунок (минус ~1 мс мёртвого времени) и их производительности при 3.5 бар — выберите те, что реально стоят. «По ДМРВ» — из воздуха при лямбде 1, на сбросе газа и при обогащении врёт.</p>
   <p>DTR/RTS переключают режим у некоторых кабелей K+DCAN. Если DME не отвечает — попробуйте включить DTR и переподключиться.</p>
+  <h2>Автосохранение в GitHub</h2>
+  <p>Создайте репозиторий (например <code>m54-logs</code>, можно приватный) и токен: GitHub → Settings → Developer settings → Fine-grained tokens → только этот репозиторий, Permissions → Contents: Read and write. Токен хранится только в этом браузере.</p>
+  <label>Репозиторий <input id="ghRepo" placeholder="Greemq/m54-logs" style="width:220px"></label>
+  <label>Токен <input id="ghToken" type="password" placeholder="github_pat_…" style="width:220px"></label>
+  <label>Ветка <input id="ghBranch" value="main" style="width:90px"></label>
+  <label><button id="ghTest">Проверить</button></label>
+  <p id="ghMsg" class="msg"></p>
   <h2>DS2-консоль (другие блоки)</h2>
   <p>Чтобы вывести скорости колёс (DSC), климат (IHKA) и температуру АКПП (EGS), нужно найти раскладку их ответов. Выберите блок, нажмите «Опросить» — ниже сырые байты. Байты, которые меняются при вращении колёс / смене температуры — и есть нужные. Запишите, какие позиции что показывают.</p>
   <div class="bar" style="margin:0">
@@ -707,11 +724,78 @@ async function saveLog(r) {
   if (!r) return;
   const file = new File([toCsv(r)], fileName(r), { type: 'text/csv' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.append(a); a.click(); a.remove();
-  msg('Сохранено в «Загрузки» (Download): ' + file.name + '. Перенести на компьютер: флешкой через файловый менеджер магнитолы или по Bluetooth на телефон.');
+  msg('Сохранено в «Загрузки» (Download): ' + file.name);
 }
-// резервная копия последнего лога в браузере (на случай, если вкладку закроют до сохранения)
-function saveBackup(r) { try { localStorage.setItem('m54_last_log', JSON.stringify({ name: r.name, started: r.started, rows: r.rows })); } catch (e) {} }
-try { const b = JSON.parse(localStorage.getItem('m54_last_log') || 'null'); if (b && b.rows && b.rows.length) { b.started = new Date(b.started); window.lastLog = b; $('btnSave').hidden = false; $('stRec').textContent = `есть несохранённый лог: ${b.rows.length} строк`; } } catch (e) {}
+// ===== библиотека логов в IndexedDB + автоотправка в GitHub
+const DB = { db: null };
+function idb() {
+  if (DB.db) return Promise.resolve(DB.db);
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('m54', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('logs', { keyPath: 'name' });
+    r.onsuccess = () => res(DB.db = r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function dbAll() { const d = await idb(); return new Promise((res, rej) => { const q = d.transaction('logs').objectStore('logs').getAll(); q.onsuccess = () => res(q.result.sort((a, b) => b.started - a.started)); q.onerror = () => rej(q.error); }); }
+async function dbPut(rec) { const d = await idb(); return new Promise((res, rej) => { const q = d.transaction('logs', 'readwrite').objectStore('logs').put(rec); q.onsuccess = res; q.onerror = () => rej(q.error); }); }
+async function dbGet(name) { const d = await idb(); return new Promise((res, rej) => { const q = d.transaction('logs').objectStore('logs').get(name); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }
+async function dbDel(name) { const d = await idb(); return new Promise((res, rej) => { const q = d.transaction('logs', 'readwrite').objectStore('logs').delete(name); q.onsuccess = res; q.onerror = () => rej(q.error); }); }
+
+async function saveBackup(r) {
+  const rec = { name: fileName(r), started: +r.started, run: r.name, csv: toCsv(r), rows: r.rows.length, uploaded: false, err: '' };
+  try { await dbPut(rec); } catch (e) { $('libMsg').textContent = 'Не удалось сохранить в память браузера: ' + e.message; return; }
+  renderLib();
+  if (ghCfg().token) uploadLog(rec);
+}
+// --- GitHub
+const ghCfg = () => ({ repo: ($('ghRepo').value || '').trim(), token: ($('ghToken').value || '').trim(), branch: ($('ghBranch').value || 'main').trim() });
+for (const id of ['ghRepo', 'ghToken', 'ghBranch']) { try { const v = localStorage.getItem('m54_' + id); if (v) $(id).value = v; } catch (e) {} $(id).onchange = () => { try { localStorage.setItem('m54_' + id, $(id).value.trim()); } catch (e) {} }; }
+const b64 = s => { const u = new TextEncoder().encode(s); let b = ''; for (let i = 0; i < u.length; i += 0x8000) b += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(b); };
+async function gh(path, opt = {}) {
+  const c = ghCfg();
+  const r = await fetch('https://api.github.com/repos/' + c.repo + path, { ...opt, headers: { Authorization: 'Bearer ' + c.token, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json', ...(opt.headers || {}) } });
+  if (!r.ok) { let t = ''; try { t = (await r.json()).message; } catch (e) {} throw new Error(r.status + ' ' + t); }
+  return r.json();
+}
+let upBusy = false;
+async function uploadLog(rec) {
+  const c = ghCfg(); if (!c.repo || !c.token || upBusy) return false;
+  upBusy = true;
+  try {
+    const path = '/contents/logs/' + rec.name;
+    let sha; try { sha = (await gh(path + '?ref=' + c.branch)).sha; } catch (e) {}
+    await gh(path, { method: 'PUT', body: JSON.stringify({ message: 'log ' + rec.name, content: b64(rec.csv), branch: c.branch, ...(sha ? { sha } : {}) }) });
+    rec.uploaded = true; rec.err = ''; await dbPut(rec); renderLib(); return true;
+  } catch (e) { rec.err = e.message; await dbPut(rec); renderLib(); return false; }
+  finally { upBusy = false; }
+}
+async function uploadPending() { let list = []; try { list = await dbAll(); } catch (e) { return; } for (const r of list) if (!r.uploaded) { if (!await uploadLog(r)) break; } }
+$('btnUpAll').onclick = uploadPending;
+addEventListener('online', uploadPending);
+$('ghTest').onclick = async () => { try { const r = await gh(''); $('ghMsg').textContent = 'OK: ' + r.full_name + (r.private ? ' (приватный)' : '') + ', запись: ' + (r.permissions && r.permissions.push ? 'да' : 'НЕТ'); uploadPending(); } catch (e) { $('ghMsg').textContent = 'Ошибка: ' + e.message; } };
+// --- список
+async function renderLib() {
+  let list = []; try { list = await dbAll(); } catch (e) { $('libMsg').textContent = 'Память браузера недоступна: ' + e.message; return; }
+  const box = $('lib'); box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<div class="msg">Пока нет записей.</div>'; return; }
+  const pend = list.filter(r => !r.uploaded).length;
+  $('libMsg').textContent = `${list.length} записей · ${(list.reduce((s, r) => s + r.csv.length, 0) / 1048576).toFixed(1)} МБ` + (pend ? ` · не отправлено: ${pend}` : ghCfg().token ? ' · всё отправлено в GitHub' : ' · GitHub не настроен');
+  for (const r of list) {
+    const d = document.createElement('div'); d.className = 'row';
+    const st = r.uploaded ? '<span class="st up">✓ в GitHub</span>' : r.err ? `<span class="st err">ошибка: ${r.err}</span>` : '<span class="st">не отправлен</span>';
+    d.innerHTML = `<span class="n">${r.name}<br><span class="st">${new Date(r.started).toLocaleString('ru-RU')} · ${r.rows} строк</span></span>${st}<button data-a="an">Разобрать</button><button data-a="dl">Скачать</button>${r.uploaded ? '' : '<button data-a="up">Отправить</button>'}<button data-a="del">Удалить</button>`;
+    d.onclick = async e => {
+      const a = e.target.dataset.a; if (!a) return;
+      const rec = await dbGet(r.name);
+      if (a === 'an') { const p = parseCsv(rec.csv); analyze(p.rows, rec.name, p.head); }
+      if (a === 'dl') { const f = new File([rec.csv], rec.name, { type: 'text/csv' }); const el = document.createElement('a'); el.href = URL.createObjectURL(f); el.download = rec.name; document.body.append(el); el.click(); el.remove(); }
+      if (a === 'up') uploadLog(rec);
+      if (a === 'del') { await dbDel(r.name); renderLib(); }
+    };
+    box.append(d);
+  }
+}
+renderLib(); setTimeout(uploadPending, 3000);
 
 // ===== DS2-консоль: сырые ответы любого блока, подсветка изменившихся байт
 let dsPrev = null;
