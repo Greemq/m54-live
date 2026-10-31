@@ -116,6 +116,17 @@ body.fs{padding:6px}body.fs .bar,body.fs .msg,body.fs .tabs{display:none}body.fs
 </div>
 <div class="test" id="testBox"></div>
 
+<h2>Равномерность работы по цилиндрам</h2>
+<div class="grid" id="roughGrid">
+  <div class="tile"><div class="k">Цил. 1</div><div class="v" data-k="Rough1" data-d="2">—</div></div>
+  <div class="tile"><div class="k">Цил. 2</div><div class="v" data-k="Rough2" data-d="2">—</div></div>
+  <div class="tile"><div class="k">Цил. 3</div><div class="v" data-k="Rough3" data-d="2">—</div></div>
+  <div class="tile"><div class="k">Цил. 4</div><div class="v" data-k="Rough4" data-d="2">—</div></div>
+  <div class="tile"><div class="k">Цил. 5</div><div class="v" data-k="Rough5" data-d="2">—</div></div>
+  <div class="tile"><div class="k">Цил. 6</div><div class="v" data-k="Rough6" data-d="2">—</div></div>
+</div>
+<div class="msg">Нужна раскладка блока DME — пришлите MS430DS0.prg, после этого значения появятся (чем выше — тем хуже цилиндр).</div>
+
 <h2>Колёса (DSC)</h2>
 <div class="grid">
   <div class="tile"><div class="k">Перед лев.</div><div class="v"><span data-k="WheelFL_kmh" data-d="1">—</span><span class="u">км/ч</span></div></div>
@@ -219,7 +230,7 @@ const BLOCK_MAIN = ['0B03', [
 const BLOCK_VANOS = ['0B90', [['VanosInSet_deg',4,2,0.375,60],['VanosInRef_deg',5,5,0.001465,60],['VanosExSet_deg',10,2,-0.375,-60],['VanosExRef_deg',11,5,-0.001465,-60]]];
 const BLOCK_ADAPT = ['0B91', [['AdaptAdd1_ms',4,5,0.004,-131.072],['AdaptMul1_pct',6,5,0.001526,-50],['AdaptAdd2_ms',8,5,0.004,-131.072],['AdaptMul2_pct',10,5,0.001526,-50]]];
 const BLOCK_RON = ['0B93', [['OctaneFactor',3,5,0.00001526,0]]];
-const EXTRA_COLS = ['WheelFL_kmh', 'WheelFR_kmh', 'WheelRL_kmh', 'WheelRR_kmh', 'ATF_C', 'Gear', 'GearSel']; // появятся, когда найдём раскладки DSC/EGS
+const EXTRA_COLS = ['WheelFL_kmh', 'WheelFR_kmh', 'WheelRL_kmh', 'WheelRR_kmh', 'ATF_C', 'Gear', 'GearSel', 'Rough1', 'Rough2', 'Rough3', 'Rough4', 'Rough5', 'Rough6']; // появятся, когда найдём раскладки DSC/EGS
 const COLUMNS = [...BLOCK_MAIN[1], ...BLOCK_VANOS[1], ...BLOCK_ADAPT[1], ...BLOCK_RON[1]].map(c => c[0]).concat(EXTRA_COLS);
 
 const $ = id => document.getElementById(id);
@@ -403,6 +414,7 @@ function render() {
   const lagIn = Math.abs(cur.VanosInErr ?? 0);
   $('tVin').className = 'tile wide' + (lagIn > 10 ? ' bad' : lagIn > 5 ? ' warn' : '');
   for (const [id, k] of [['tL1', 'Lambda1'], ['tL2', 'Lambda2']]) { const v = cur[k]; $(id).className = 'tile' + (v == null ? '' : (v < 0.9 || v > 1.1) ? ' bad' : (v < 0.95 || v > 1.05) ? ' warn' : ''); }
+  { const rs = [1, 2, 3, 4, 5, 6].map(i => cur['Rough' + i]); if (rs.every(v => v != null)) { const mx = Math.max(...rs), md = rs.slice().sort((a, b) => a - b)[3]; [...$('roughGrid').children].forEach((el, i) => el.className = 'tile' + (rs[i] === mx && mx > md * 2 + 0.5 ? ' bad' : '')); } }
   { const a = Math.abs(cur.AxleDiff_kmh ?? 0); $('tAxle').className = 'tile' + (a > 4 ? ' bad' : a > 2 ? ' warn' : ''); }
   $('vDfco').textContent = cur.Dfco ?? '—';
   $('sDfco').textContent = cur.Dfco == null ? 'педаль 0, >1500 об' : `накат ${cur.DfcoT.toFixed(1)} с · впрыск ${fmt(cur.Inj_ms, 2)} мс`;
@@ -867,6 +879,7 @@ function demoFrame(o, t) {
   o.Coolant_C = 30 + warm * 62 + Math.sin(s / 7) * 1.5; o.Oil_C = 25 + warm * 70; o.ATF_C = 30 + warm * 55; o.RadOut_C = 10 + warm * 40; o.IAT_C = 20 + warm * 15;
   o.Ubatt_V = 13.8 + Math.sin(s) * 0.1; o.Baro_hPa = 998; o.IdleInt_pct = 0.5 + Math.sin(s / 3) * 2;
   o.Knock2_V = 0.2 + ped / 100 * 0.6; o.Knock5_V = 0.25 + ped / 100 * 0.5;
+  for (let i = 1; i <= 6; i++) o['Rough' + i] = Math.abs(Math.sin(s * (1 + i / 7)) * 0.6) + (i === 3 ? 2.5 : 0.2);
 }
 </script>
 </body>
