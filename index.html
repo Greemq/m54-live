@@ -42,7 +42,9 @@ input{width:140px}
 .grid{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
 .tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:0}
 .tile .k{font-size:13px;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile .v{font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.15;color:var(--acc);text-shadow:0 0 12px rgba(245,166,35,.25)}
+.tile .v{font-size:30px;}
+.tile .v.t{font-size:19px;line-height:1.2}
+.tile .v{font-weight:600;font-variant-numeric:tabular-nums;line-height:1.15;color:var(--acc);text-shadow:0 0 12px rgba(245,166,35,.25)}
 .tile .u{font-size:13px;color:var(--fg2);margin-left:4px;font-weight:400}
 .tile .s{font-size:14px;color:var(--set);font-variant-numeric:tabular-nums}
 .tile.wide{grid-column:span 2}
@@ -116,16 +118,28 @@ body.fs{padding:6px}body.fs .bar,body.fs .msg,body.fs .tabs{display:none}body.fs
 </div>
 <div class="test" id="testBox"></div>
 
-<h2>Равномерность работы по цилиндрам</h2>
-<div class="grid" id="roughGrid">
-  <div class="tile"><div class="k">Цил. 1</div><div class="v" data-k="Rough1" data-d="2">—</div></div>
-  <div class="tile"><div class="k">Цил. 2</div><div class="v" data-k="Rough2" data-d="2">—</div></div>
-  <div class="tile"><div class="k">Цил. 3</div><div class="v" data-k="Rough3" data-d="2">—</div></div>
-  <div class="tile"><div class="k">Цил. 4</div><div class="v" data-k="Rough4" data-d="2">—</div></div>
-  <div class="tile"><div class="k">Цил. 5</div><div class="v" data-k="Rough5" data-d="2">—</div></div>
-  <div class="tile"><div class="k">Цил. 6</div><div class="v" data-k="Rough6" data-d="2">—</div></div>
+<h2>Состояние DME</h2>
+<div class="grid">
+  <div class="tile"><div class="k">Режим</div><div class="v t" id="vLoadState">—</div></div>
+  <div class="tile wide"><div class="k">λ-контур 1 / 2</div><div class="v t" id="vLoop">—</div></div>
+  <div class="tile" id="tDfcoF"><div class="k">Отсечка (флаг DME)</div><div class="v t" id="vDfcoF">—</div></div>
+  <div class="tile" id="tEgs"><div class="k">Срез момента</div><div class="v t" id="vEgs">—</div><div class="s">всего <span data-k="TqiCount" data-d="0">—</span> · макс <span data-k="TqiMax_Nm" data-d="0">—</span> Нм на <span data-k="TqiRPM" data-d="0">—</span> об</div></div>
+  <div class="tile"><div class="k">Кондиционер</div><div class="v t" id="vAC">—</div></div>
+  <div class="tile wide"><div class="k">DISA / заслонка выпуска</div><div class="v t" id="vDisa">—</div></div>
+  <div class="tile"><div class="k">Круиз / тормоз</div><div class="v t" id="vCruise">—</div></div>
+  <div class="tile"><div class="k">Перекрут</div><div class="v"><span data-k="OverrevMax" data-d="0">—</span><span class="u">об</span></div><div class="s"><span data-k="OverrevCount" data-d="0">—</span> раз</div></div>
 </div>
-<div class="msg">Нужна раскладка блока DME — пришлите MS430DS0.prg, после этого значения появятся (чем выше — тем хуже цилиндр).</div>
+
+<h2>Равномерность работы по цилиндрам · пропуски зажигания</h2>
+<div class="grid" id="roughGrid">
+  <div class="tile"><div class="k">Цил. 1</div><div class="v" data-k="Rough1" data-d="2">—</div><div class="s">пропусков <span data-k="Misfire1" data-d="0">—</span></div></div>
+  <div class="tile"><div class="k">Цил. 2</div><div class="v" data-k="Rough2" data-d="2">—</div><div class="s">пропусков <span data-k="Misfire2" data-d="0">—</span></div></div>
+  <div class="tile"><div class="k">Цил. 3</div><div class="v" data-k="Rough3" data-d="2">—</div><div class="s">пропусков <span data-k="Misfire3" data-d="0">—</span></div></div>
+  <div class="tile"><div class="k">Цил. 4</div><div class="v" data-k="Rough4" data-d="2">—</div><div class="s">пропусков <span data-k="Misfire4" data-d="0">—</span></div></div>
+  <div class="tile"><div class="k">Цил. 5</div><div class="v" data-k="Rough5" data-d="2">—</div><div class="s">пропусков <span data-k="Misfire5" data-d="0">—</span></div></div>
+  <div class="tile"><div class="k">Цил. 6</div><div class="v" data-k="Rough6" data-d="2">—</div><div class="s">пропусков <span data-k="Misfire6" data-d="0">—</span></div></div>
+</div>
+<div class="msg">Равномерность: чем больше число, тем хуже горит цилиндр (на ХХ у здорового мотора все близки к нулю, выброс одного — форсунка/свеча/катушка/компрессия).</div>
 
 <h2>Колёса (DSC)</h2>
 <div class="grid">
@@ -181,6 +195,24 @@ body.fs{padding:6px}body.fs .bar,body.fs .msg,body.fs .tabs{display:none}body.fs
 <div id="lib" class="lib"></div>
 <div class="bar" style="margin-top:6px"><button id="btnUpAll">Отправить неотправленные</button></div>
 
+<h2>Исполнительные тесты (INPA без ноутбука)</h2>
+<div class="msg">Только на стоящей машине. DME принимает команды на холостом или с включённым зажиганием; после тестов нажмите «Вернуть управление DME». Команды из MS430DS0.prg.</div>
+<div class="grid" id="tests">
+  <div class="tile"><div class="k">DISA</div><div class="bar" style="margin:4px 0 0"><button data-cmd="2288FF">Вкл</button><button data-cmd="228800">Выкл</button></div></div>
+  <div class="tile"><div class="k">Заслонка выпуска</div><div class="bar" style="margin:4px 0 0"><button data-cmd="228AFF">Открыть</button><button data-cmd="228A00">Закрыть</button></div></div>
+  <div class="tile"><div class="k">Бензонасос</div><div class="bar" style="margin:4px 0 0"><button data-cmd="2284FF">Вкл</button><button data-cmd="228400">Выкл</button></div></div>
+  <div class="tile"><div class="k">Реле компрессора</div><div class="bar" style="margin:4px 0 0"><button data-cmd="2294FF">Вкл</button><button data-cmd="229400">Выкл</button></div></div>
+  <div class="tile"><div class="k">Лампа MIL</div><div class="bar" style="margin:4px 0 0"><button data-cmd="2291FF">Вкл</button><button data-cmd="229100">Выкл</button></div></div>
+  <div class="tile"><div class="k">Вентилятор, %</div><div class="bar" style="margin:4px 0 0"><input id="tFan" type="number" value="50" min="0" max="100" style="width:80px"><button data-pwm="228E" data-src="tFan" data-k="2.56">Задать</button></div></div>
+  <div class="tile"><div class="k">Термостат, % (80 = по умолч.)</div><div class="bar" style="margin:4px 0 0"><input id="tTh" type="number" value="100" min="0" max="100" style="width:80px"><button data-pwm="2283" data-src="tTh" data-k="2.55">Задать</button></div></div>
+  <div class="tile"><div class="k">Обороты ХХ (512–1792)</div><div class="bar" style="margin:4px 0 0"><input id="tIdle" type="number" value="900" min="512" max="1792" step="32" style="width:90px"><button data-pwm="2290" data-src="tIdle" data-k="0.03125">Задать</button></div></div>
+  <div class="tile"><div class="k">Клапан адсорбера, %</div><div class="bar" style="margin:4px 0 0"><input id="tTev" type="number" value="50" min="0" max="99" style="width:80px"><button data-pwm="22BB" data-src="tTev" data-k="2.56">Задать</button></div></div>
+  <div class="tile"><div class="k">Отключить форсунку (№)</div><div class="bar" style="margin:4px 0 0"><input id="tInj" type="number" value="1" min="1" max="6" style="width:70px"><button id="tInjOff">Выкл</button></div></div>
+  <div class="tile"><div class="k">Ошибки DME</div><div class="bar" style="margin:4px 0 0"><button id="tFsRead">Прочитать</button><button id="tFsClear">Стереть</button></div></div>
+  <div class="tile"><div class="k">Завершить тесты</div><div class="bar" style="margin:4px 0 0"><button id="tEnd" class="primary">Вернуть управление DME</button></div></div>
+</div>
+<pre class="rep" id="testOut" hidden></pre>
+
 <details>
   <summary>Настройки</summary>
   <select id="optInj" hidden><option value="237" selected>237</option></select>
@@ -230,8 +262,21 @@ const BLOCK_MAIN = ['0B03', [
 const BLOCK_VANOS = ['0B90', [['VanosInSet_deg',4,2,0.375,60],['VanosInRef_deg',5,5,0.001465,60],['VanosExSet_deg',10,2,-0.375,-60],['VanosExRef_deg',11,5,-0.001465,-60]]];
 const BLOCK_ADAPT = ['0B91', [['AdaptAdd1_ms',4,5,0.004,-131.072],['AdaptMul1_pct',6,5,0.001526,-50],['AdaptAdd2_ms',8,5,0.004,-131.072],['AdaptMul2_pct',10,5,0.001526,-50]]];
 const BLOCK_RON = ['0B93', [['OctaneFactor',3,5,0.00001526,0]]];
-const EXTRA_COLS = ['WheelFL_kmh', 'WheelFR_kmh', 'WheelRL_kmh', 'WheelRR_kmh', 'ATF_C', 'Gear', 'GearSel', 'Rough1', 'Rough2', 'Rough3', 'Rough4', 'Rough5', 'Rough6']; // появятся, когда найдём раскладки DSC/EGS
-const COLUMNS = [...BLOCK_MAIN[1], ...BLOCK_VANOS[1], ...BLOCK_ADAPT[1], ...BLOCK_RON[1]].map(c => c[0]).concat(EXTRA_COLS);
+// 2B05: равномерность работы (ER_QUO, порядок зажигания 1-5-3-6-2-4) и счётчики пропусков по цилиндрам
+const BLOCK_ROUGH = ['2B05', [['Rough1',4,7,0.00122,0],['Rough5',6,7,0.00122,0],['Rough3',8,7,0.00122,0],['Rough6',10,7,0.00122,0],['Rough2',12,7,0.00122,0],['Rough4',14,7,0.00122,0],
+  ['Misfire1',16,5,1,0],['Misfire5',18,5,1,0],['Misfire3',20,5,1,0],['Misfire6',22,5,1,0],['Misfire2',24,5,1,0],['Misfire4',26,5,1,0]]];
+// 0B96: вмешательства по моменту (АКПП/ASC): счётчик, макс. срез, стоп-кадр
+const BLOCK_TQI = ['0B96', [['TqiMax_Nm',3,7,1,0],['TqiMaxT_s',5,5,0.01,0],['TqiCount',7,5,1,0],['TqiRPM',9,2,32,0]]];
+// 0BA2: перекрут
+const BLOCK_OVERREV = ['0BA2', [['OverrevMax',3,5,0.15625,0],['OverrevMin',5,5,6,0],['OverrevCount',7,2,1,0]]];
+// 0B04: битовые состояния DME (BYTE от начала данных после A0)
+const BITS_DIGITAL = [['LoadState',0,0x03,null],['SwAC',0,0x40,0x40],['SwCruise',0,0x20,0x20],['SwBrake',0,0x08,0x08],
+  ['ClosedLoop2',1,0x80,0x80],['ClosedLoop1',1,0x40,0x40],['DfcoFlag',1,0x20,0x20],['Overrun',1,0x10,0x10],['GearIn',1,0x04,0x04],['EgsInt',1,0x02,0x02],
+  ['ExhFlap',2,0x08,0x08],['AcRelay',2,0x02,0x02],['FuelPump',2,0x01,0x01],
+  ['CatHeat',3,0x80,0x80],['MIL',3,0x10,0x10],['Purge',3,0x08,0x08],['DISA',3,0x04,0x04],['AscInt',3,0x02,0x02],
+  ['CruiseActive',4,0x80,0x80],['VanosActive',5,0x80,0x80]];
+const EXTRA_COLS = ['WheelFL_kmh', 'WheelFR_kmh', 'WheelRL_kmh', 'WheelRR_kmh', 'ATF_C', 'Gear', 'GearSel'];
+const COLUMNS = [...BLOCK_MAIN[1], ...BLOCK_VANOS[1], ...BLOCK_ADAPT[1], ...BLOCK_RON[1], ...BLOCK_ROUGH[1], ...BLOCK_TQI[1]].map(c => c[0]).concat(BITS_DIGITAL.map(b => b[0])).concat(EXTRA_COLS);
 
 const $ = id => document.getElementById(id);
 const msg = (t, err) => { $('msg').textContent = t; $('msg').className = 'msg' + (err ? ' err' : ''); };
@@ -323,6 +368,10 @@ async function readBlock(port, [cmd, fields, addr], out) {
   const r = await ds2(port, cmd, addr ?? DME);
   for (const [k, p, t, a, b] of fields) if (p + (t >= 5 ? 1 : 0) < r.length - 1) out[k] = raw(r, p, t) * a + b;
 }
+async function readBits(port, cmd, bits, out) {
+  const r = await ds2(port, cmd);
+  for (const [k, byte, mask, val] of bits) { const b = r[3 + byte]; if (b == null) continue; out[k] = val == null ? (b & mask) : ((b & mask) === val ? 1 : 0); }
+}
 
 // ===== состояние
 let port = null, running = false, demo = false;
@@ -348,7 +397,7 @@ function dfco(o) {
   const now = performance.now();
   if (!coast) { dfcoT0 = null; o.Dfco = null; return; }
   if (dfcoT0 == null) dfcoT0 = now;
-  const cut = o.Inj_ms < 1.3; // при отсечке MS43 показывает только мёртвое время (~0.9–1.2 мс)
+  const cut = o.DfcoFlag != null ? o.DfcoFlag === 1 : o.Inj_ms < 1.3; // флаг DME (0B04), иначе по впрыску: при отсечке только мёртвое время
   o.Dfco = cut ? 'да' : (now - dfcoT0 > 2500 ? 'НЕТ' : '…');
   o.DfcoT = (now - dfcoT0) / 1000;
 }
@@ -379,7 +428,7 @@ function testFrame(o, kind) {
 }
 
 async function pollLoop() {
-  let nextAdapt = 0;
+  let nextAdapt = 0, nextRough = 0;
   while (running) {
     const t = performance.now();
     try {
@@ -387,7 +436,9 @@ async function pollLoop() {
       else {
         await readBlock(port, BLOCK_MAIN, cur);
         if ($('optVanos').checked) await readBlock(port, BLOCK_VANOS, cur);
-        if (t >= nextAdapt) { await readBlock(port, BLOCK_ADAPT, cur); await readBlock(port, BLOCK_RON, cur); nextAdapt = t + 5000; }
+        await readBits(port, '0B04', BITS_DIGITAL, cur);
+        if (t >= nextRough) { await readBlock(port, BLOCK_ROUGH, cur); nextRough = t + 1000; }
+        if (t >= nextAdapt) { await readBlock(port, BLOCK_ADAPT, cur); await readBlock(port, BLOCK_RON, cur); await readBlock(port, BLOCK_TQI, cur); await readBlock(port, BLOCK_OVERREV, cur); nextAdapt = t + 5000; }
         if ($('dsLive').checked && !dsBusy) await dsPoll();
       }
       derived(cur); errs = 0; samples++;
@@ -416,6 +467,13 @@ function render() {
   for (const [id, k] of [['tL1', 'Lambda1'], ['tL2', 'Lambda2']]) { const v = cur[k]; $(id).className = 'tile' + (v == null ? '' : (v < 0.9 || v > 1.1) ? ' bad' : (v < 0.95 || v > 1.05) ? ' warn' : ''); }
   { const rs = [1, 2, 3, 4, 5, 6].map(i => cur['Rough' + i]); if (rs.every(v => v != null)) { const mx = Math.max(...rs), md = rs.slice().sort((a, b) => a - b)[3]; [...$('roughGrid').children].forEach((el, i) => el.className = 'tile' + (rs[i] === mx && mx > md * 2 + 0.5 ? ' bad' : '')); } }
   { const a = Math.abs(cur.AxleDiff_kmh ?? 0); $('tAxle').className = 'tile' + (a > 4 ? ' bad' : a > 2 ? ' warn' : ''); }
+  $('vLoadState').textContent = cur.LoadState == null ? '—' : ['—', 'ХХ', 'частичная', 'полная'][cur.LoadState] || '—';
+  $('vLoop').textContent = cur.ClosedLoop1 == null ? '—' : (cur.ClosedLoop1 ? 'замкнут' : 'открыт') + ' / ' + (cur.ClosedLoop2 ? 'замкнут' : 'открыт');
+  $('vDfcoF').textContent = cur.DfcoFlag == null ? '—' : cur.DfcoFlag ? 'активна' : (cur.Overrun ? 'накат, нет' : 'нет'); $('tDfcoF').className = 'tile' + (cur.DfcoFlag ? ' ok' : cur.Overrun && !cur.DfcoFlag && cur.RPM > 1500 ? ' warn' : '');
+  $('vEgs').textContent = cur.EgsInt == null ? '—' : cur.EgsInt ? 'АКПП' : cur.AscInt ? 'ASC' : 'нет'; $('tEgs').className = 'tile' + (cur.EgsInt || cur.AscInt ? ' warn' : '');
+  $('vAC').textContent = cur.AcRelay == null ? '—' : cur.AcRelay ? 'компрессор вкл' : cur.SwAC ? 'запрос, выкл' : 'выкл';
+  $('vDisa').textContent = cur.DISA == null ? '—' : (cur.DISA ? 'DISA вкл' : 'DISA выкл') + ' / ' + (cur.ExhFlap ? 'открыта' : 'закрыта');
+  $('vCruise').textContent = cur.CruiseActive == null ? '—' : (cur.CruiseActive ? 'круиз' : '—') + ' / ' + (cur.SwBrake ? 'тормоз' : '—');
   $('vDfco').textContent = cur.Dfco ?? '—';
   $('sDfco').textContent = cur.Dfco == null ? 'педаль 0, >1500 об' : `накат ${cur.DfcoT.toFixed(1)} с · впрыск ${fmt(cur.Inj_ms, 2)} мс`;
   $('tDfco').className = 'tile' + (cur.Dfco === 'да' ? ' ok' : cur.Dfco === 'НЕТ' ? ' bad' : '');
@@ -828,6 +886,31 @@ async function renderLib() {
 }
 renderLib(); setTimeout(uploadPending, 3000);
 
+// ===== исполнительные тесты: 12 06 22 xx yy (команды из MS430DS0.prg)
+async function sendTest(cmdHex, label) {
+  if (!port || demo) { $('testOut').hidden = false; $('testOut').textContent = 'Нужен подключённый кабель (не демо).'; return; }
+  if (cur.Speed_kmh > 0) { $('testOut').hidden = false; $('testOut').textContent = 'Машина едет — тесты только на стоящей.'; return; }
+  try { const r = await ds2(port, cmdHex); $('testOut').hidden = false; $('testOut').textContent = (label || cmdHex) + ' → DME: ' + r.map(b => b.toString(16).padStart(2, '0')).join(' '); }
+  catch (e) { $('testOut').hidden = false; $('testOut').textContent = (label || cmdHex) + ' → ошибка: ' + e.message; }
+}
+$('tests').onclick = async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.cmd) return sendTest(b.dataset.cmd, b.parentElement.parentElement.querySelector('.k').textContent + ' ' + b.textContent);
+  if (b.dataset.pwm) { const v = Math.round((+$(b.dataset.src).value || 0) * +b.dataset.k); return sendTest(b.dataset.pwm + Math.min(255, Math.max(0, v)).toString(16).padStart(2, '0'), b.parentElement.parentElement.querySelector('.k').textContent + ' = ' + $(b.dataset.src).value); }
+};
+$('tInjOff').onclick = () => sendTest('2282' + (+$('tInj').value).toString(16).padStart(2, '0'), 'Форсунка ' + $('tInj').value + ' выкл');
+$('tEnd').onclick = () => sendTest('9F', 'Конец диагностики');
+$('tFsClear').onclick = () => { if (confirm('Стереть память ошибок DME?')) sendTest('05', 'Стереть ошибки'); };
+$('tFsRead').onclick = async () => {
+  if (!port || demo) { $('testOut').hidden = false; $('testOut').textContent = 'Нужен подключённый кабель (не демо).'; return; }
+  try {
+    const r = await ds2(port, '0400'); const n = r[3];
+    let txt = 'Ошибок в памяти: ' + n + '\n';
+    for (let i = 0; i < n; i++) { const d = await ds2(port, '0401'); txt += '  ' + d.slice(3, -1).map(b => b.toString(16).padStart(2, '0')).join(' ') + '\n'; }
+    $('testOut').hidden = false; $('testOut').textContent = txt + (n ? '\nКоды сырые — расшифровка текстов из prg появится следующим шагом. Скопируйте и пришлите.' : '');
+  } catch (e) { $('testOut').hidden = false; $('testOut').textContent = 'Чтение ошибок: ' + e.message; }
+};
+
 // ===== DS2-консоль: сырые ответы любого блока, подсветка изменившихся байт
 let dsPrev = null;
 async function dsPoll() {
@@ -879,7 +962,10 @@ function demoFrame(o, t) {
   o.Coolant_C = 30 + warm * 62 + Math.sin(s / 7) * 1.5; o.Oil_C = 25 + warm * 70; o.ATF_C = 30 + warm * 55; o.RadOut_C = 10 + warm * 40; o.IAT_C = 20 + warm * 15;
   o.Ubatt_V = 13.8 + Math.sin(s) * 0.1; o.Baro_hPa = 998; o.IdleInt_pct = 0.5 + Math.sin(s / 3) * 2;
   o.Knock2_V = 0.2 + ped / 100 * 0.6; o.Knock5_V = 0.25 + ped / 100 * 0.5;
-  for (let i = 1; i <= 6; i++) o['Rough' + i] = Math.abs(Math.sin(s * (1 + i / 7)) * 0.6) + (i === 3 ? 2.5 : 0.2);
+  for (let i = 1; i <= 6; i++) { o['Rough' + i] = Math.abs(Math.sin(s * (1 + i / 7)) * 0.6) + (i === 3 ? 2.5 : 0.2); o['Misfire' + i] = i === 3 ? 7 : 0; }
+  o.LoadState = ped === 0 ? 1 : ped > 60 ? 3 : 2; o.ClosedLoop1 = o.ClosedLoop2 = ped > 60 || coast ? 0 : 1; o.DfcoFlag = coast ? 1 : 0; o.Overrun = ped === 0 && spd > 5 ? 1 : 0;
+  o.GearIn = spd > 0 ? 1 : 0; o.EgsInt = (cyc > 6 && cyc < 18 && Math.abs((spd % 30) - 25) < 1) ? 1 : 0; o.AscInt = 0; o.AcRelay = 1; o.SwAC = 1; o.DISA = o.RPM > 3750 ? 0 : 1; o.ExhFlap = ped > 50 ? 1 : 0; o.SwBrake = cyc > 34 ? 1 : 0; o.CruiseActive = 0;
+  o.TqiCount = 42; o.TqiMax_Nm = 95; o.TqiRPM = 2600; o.OverrevMax = 6320; o.OverrevCount = 1;
 }
 </script>
 </body>
