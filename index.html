@@ -177,6 +177,7 @@ body.fs{padding:6px}body.fs .bar,body.fs .msg,body.fs .tabs{display:none}body.fs
   <p>Расход «по впрыску» считается из времени открытия форсунок (минус ~1 мс мёртвого времени) и их производительности при 3.5 бар — выберите те, что реально стоят. «По ДМРВ» — из воздуха при лямбде 1, на сбросе газа и при обогащении врёт.</p>
   <p>DTR/RTS переключают режим у некоторых кабелей K+DCAN. Если DME не отвечает — попробуйте включить DTR и переподключиться.</p>
   <h2>Автосохранение в GitHub</h2>
+  <p>Чтобы не набирать токен на магнитоле: откройте на ней ссылку <code>…/m54-live/#gh=Greemq/M54-logs,github_pat_…</code> — настройки сохранятся и исчезнут из адреса. Ссылку удобно собрать на телефоне и отправить в Chrome магнитолы («Отправить на устройства» / «Недавние вкладки»).</p>
   <p>Создайте репозиторий (например <code>m54-logs</code>, можно приватный) и токен: GitHub → Settings → Developer settings → Fine-grained tokens → только этот репозиторий, Permissions → Contents: Read and write. Токен хранится только в этом браузере.</p>
   <label>Репозиторий <input id="ghRepo" placeholder="Greemq/m54-logs" style="width:220px"></label>
   <label>Токен <input id="ghToken" type="password" placeholder="github_pat_…" style="width:220px"></label>
@@ -756,6 +757,11 @@ async function saveRaw(r) {
 }
 // --- GitHub
 const ghCfg = () => ({ repo: ($('ghRepo').value || '').trim(), token: ($('ghToken').value || '').trim(), branch: ($('ghBranch').value || 'main').trim() });
+// настройки из адреса: #gh=owner/repo,token[,branch] — сохраняются и стираются из адресной строки
+try {
+  const m = /[#&]gh=([^&]+)/.exec(location.hash);
+  if (m) { const [repo, token, branch] = decodeURIComponent(m[1]).split(','); if (repo && token) { localStorage.setItem('m54_ghRepo', repo.trim()); localStorage.setItem('m54_ghToken', token.trim()); if (branch) localStorage.setItem('m54_ghBranch', branch.trim()); } history.replaceState(null, '', location.pathname + location.search); setTimeout(() => $('ghTest').onclick(), 500); }
+} catch (e) {}
 for (const id of ['ghRepo', 'ghToken', 'ghBranch']) { try { const v = localStorage.getItem('m54_' + id); if (v) $(id).value = v; } catch (e) {} $(id).onchange = () => { try { localStorage.setItem('m54_' + id, $(id).value.trim()); } catch (e) {} }; }
 const b64 = s => { const u = new TextEncoder().encode(s); let b = ''; for (let i = 0; i < u.length; i += 0x8000) b += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(b); };
 async function gh(path, opt = {}) {
