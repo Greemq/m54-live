@@ -110,7 +110,7 @@ body.fs{padding:6px}body.fs .bar,body.fs .msg,body.fs .tabs{display:none}body.fs
   <div class="tile"><div class="k">Впрыск</div><div class="v"><span data-k="Inj_ms" data-d="2">—</span><span class="u">мс</span></div></div>
   <div class="tile"><div class="k">Угол зажигания</div><div class="v"><span data-k="Ign_deg" data-d="1">—</span><span class="u">°</span></div></div>
   <div class="tile"><div class="k">Расход (по впрыску)</div><div class="v"><span data-k="Fuel_lh" data-d="1">—</span><span class="u">л/ч</span></div><div class="s"><span data-k="Fuel_l100" data-d="1">—</span> л/100 · по ДМРВ <span data-k="FuelMaf_lh" data-d="1">—</span> л/ч</div></div>
-  <div class="tile" id="tDfco"><div class="k">Отсечка на сбросе</div><div class="v" id="vDfco">—</div><div class="s" id="sDfco">педаль 0, &gt;1500 об</div></div>
+  <div class="tile" id="tDfco"><div class="k">Отсечка на сбросе</div><div class="v" id="vDfco">—</div><div class="s" id="sDfco">педаль 0, &gt;1500 об · впрыск ≈ 1 мс = отсечка</div></div>
   <div class="tile"><div class="k">Детонация 2 / 5</div><div class="v"><span data-k="Knock2_V" data-d="2">—</span><span class="u">В</span></div><div class="s"><span data-k="Knock5_V" data-d="2">—</span> В</div></div>
   <div class="tile"><div class="k">Регулятор ХХ</div><div class="v"><span data-k="IdleInt_pct" data-d="1">—</span><span class="u">%</span></div></div>
 </div>
@@ -128,8 +128,8 @@ body.fs{padding:6px}body.fs .bar,body.fs .msg,body.fs .tabs{display:none}body.fs
 
 <h2>Смесь</h2>
 <div class="grid">
-  <div class="tile" id="tL1"><div class="k">Лямбда банк 1</div><div class="v" data-k="Lambda1" data-d="3">—</div></div>
-  <div class="tile" id="tL2"><div class="k">Лямбда банк 2</div><div class="v" data-k="Lambda2" data-d="3">—</div></div>
+  <div class="tile" id="tL1"><div class="k">λ-регулятор банк 1 (STFT)</div><div class="v" data-k="Lambda1" data-d="3">—</div></div>
+  <div class="tile" id="tL2"><div class="k">λ-регулятор банк 2 (STFT)</div><div class="v" data-k="Lambda2" data-d="3">—</div></div>
   <div class="tile"><div class="k">Адаптация мульт. 1 / 2</div><div class="v"><span data-k="AdaptMul1_pct" data-d="1">—</span><span class="u">%</span></div><div class="s"><span data-k="AdaptMul2_pct" data-d="1">—</span> %</div></div>
   <div class="tile"><div class="k">Адаптация адд. 1 / 2</div><div class="v"><span data-k="AdaptAdd1_ms" data-d="3">—</span><span class="u">мс</span></div><div class="s"><span data-k="AdaptAdd2_ms" data-d="3">—</span> мс</div></div>
   <div class="tile"><div class="k">Октан-адаптация</div><div class="v" data-k="OctaneFactor" data-d="3">—</div></div>
@@ -316,7 +316,7 @@ let samples = 0, lastRateT = performance.now(), errs = 0;
 // ===== расчёт топлива: 6 цилиндров, впрыск раз в два оборота, мёртвое время ~1 мс
 const INJ_DEAD_MS = 1.0;
 function injFlow() { return +($('optInj').value || 237); }                         // см³/мин при 3.5 бар
-function fuelLh(rpm, inj, flow) { return 6 * rpm / 120 * Math.max(0, inj - INJ_DEAD_MS) * flow / 60000 * 3.6; } // л/ч
+function fuelLh(rpm, inj, flow) { return inj < 1.3 ? 0 : 6 * rpm / 120 * Math.max(0, inj - INJ_DEAD_MS) * flow / 60000 * 3.6; } // л/ч; <1.3 мс = отсечка
 function derived(o) {
   if (o.MAF_kgh != null) o.FuelMaf_lh = o.MAF_kgh / 14.7 / 0.745;
   if (o.RPM != null && o.Inj_ms != null) { o.Fuel_lh = fuelLh(o.RPM, o.Inj_ms, injFlow()); o.Fuel_l100 = o.Speed_kmh > 3 ? o.Fuel_lh / o.Speed_kmh * 100 : null; }
@@ -327,11 +327,11 @@ function derived(o) {
 // отсечка: педаль 0 и обороты выше 1500 — DME должна убрать впрыск в ноль через 1–2 с
 let dfcoT0 = null;
 function dfco(o) {
-  const coast = o.Pedal_pct != null && o.Pedal_pct < 1 && o.RPM > 1500;
+  const coast = o.Pedal_pct != null && o.Pedal_pct < 1 && (o.Throttle_deg == null || o.Throttle_deg < 1.5) && o.RPM > 1500;
   const now = performance.now();
   if (!coast) { dfcoT0 = null; o.Dfco = null; return; }
   if (dfcoT0 == null) dfcoT0 = now;
-  const cut = o.Inj_ms < 0.3;
+  const cut = o.Inj_ms < 1.3; // при отсечке MS43 показывает только мёртвое время (~0.9–1.2 мс)
   o.Dfco = cut ? 'да' : (now - dfcoT0 > 2500 ? 'НЕТ' : '…');
   o.DfcoT = (now - dfcoT0) / 1000;
 }
@@ -349,15 +349,15 @@ function testFrame(o, kind) {
     const avg = a => a.length ? (a.reduce((s, v) => s + v, 0) / a.length) : null;
     $('testBox').innerHTML = `<b>Полный газ</b> — держите педаль в пол, пока не сработает отсечка. Точек с педалью &gt;75%: <b>${t.n}</b><br>` +
       `Нагрузка макс <b>${t.loadMax.toFixed(0)}</b> мг/т на <b>${Math.round(t.rpmAtLoadMax)}</b> об · ДМРВ макс <b>${t.mafMax.toFixed(0)}</b> кг/ч<br>` +
-      `Выше 3000 об: лямбда <b>${fmt(avg(t.lam), 3)}</b> (цель 0.85–0.90) · УОЗ средн <b>${fmt(avg(t.ign), 1)}</b>° мин <b>${t.n && t.ignMin < 99 ? t.ignMin.toFixed(1) : '—'}</b>° · детонация макс <b>${t.knock.toFixed(2)}</b> В`;
+      `Выше 3000 об: λ-регулятор <b>${fmt(avg(t.lam), 3)}</b> (1.000 = открытый контур, норма на WOT) · нагрузка ≥430 мг = полное наполнение · УОЗ средн <b>${fmt(avg(t.ign), 1)}</b>° мин <b>${t.n && t.ignMin < 99 ? t.ignMin.toFixed(1) : '—'}</b>° · детонация макс <b>${t.knock.toFixed(2)}</b> В`;
   } else if (kind === 'coast') {
     const t = test.coast || (test.coast = { n: 0, cutN: 0, injMin: 99, lam: [], rpm: [] });
-    if (o.Pedal_pct < 1 && o.RPM > 1500 && o.Speed_kmh > 15) {
-      t.n++; if (o.Inj_ms < 0.3) t.cutN++; t.injMin = Math.min(t.injMin, o.Inj_ms); t.lam.push(o.Lambda1); t.rpm.push(o.RPM);
+    if (o.Pedal_pct < 1 && o.Throttle_deg < 1.5 && o.RPM > 1500 && o.Speed_kmh > 15) {
+      t.n++; if (o.Inj_ms < 1.3) t.cutN++; t.injMin = Math.min(t.injMin, o.Inj_ms); t.lam.push(o.Lambda1); t.rpm.push(o.RPM);
     }
     const verdict = t.n < 10 ? 'ещё мало данных' : t.cutN > t.n * 0.3 ? '<span style="color:var(--ok)">отсечка работает</span>' : '<span style="color:var(--bad)">отсечки НЕТ — DME льёт на накате</span>';
     $('testBox').innerHTML = `<b>Накат</b> — разгон до 3000 об, педаль полностью отпустить, катиться 5–6 с. Точек наката: <b>${t.n}</b>, с впрыском 0: <b>${t.cutN}</b><br>` +
-      `Впрыск мин <b>${t.n ? t.injMin.toFixed(2) : '—'}</b> мс · лямбда на накате средн <b>${fmt(t.lam.length ? t.lam.reduce((s, v) => s + v, 0) / t.lam.length : null, 3)}</b> (при отсечке датчик уходит &gt;1.3)<br>${verdict}`;
+      `Впрыск мин <b>${t.n ? t.injMin.toFixed(2) : '—'}</b> мс (≈1 мс = отсечка, только мёртвое время) · λ-регулятор <b>${fmt(t.lam.length ? t.lam.reduce((s, v) => s + v, 0) / t.lam.length : null, 3)}</b> (при отсечке замирает на 1.000)<br>${verdict}`;
   }
 }
 
@@ -655,7 +655,7 @@ function analyze(rows, name, head) {
   if (warmIdle.length > 5) { const maf = mean(col(warmIdle, 'MAF_kgh')); if (maf > 19) L('ДМРВ на прогретом ХХ > 19 кг/ч — многовато даже для D: подсос/клапан КВКГ/нагрузка от навесного.', 'w'); }
 
   // лямбда по режимам
-  L(''); L('<span class="h">Смесь по режимам (λ банк 1)</span>');
+  L(''); L('<span class="h">λ-регулятор (STFT) по режимам, банк 1 — 1.00 = DME ничего не правит</span>');
   for (const [nm, f] of [['холодный <65°, газ', r => g(r, 'Coolant_C') < 65 && g(r, 'Pedal_pct') > 5], ['прогретый, газ', r => g(r, 'Coolant_C') >= 65 && g(r, 'Pedal_pct') > 5]]) {
     const s = sel(f); if (s.length < 10) continue;
     const rich = s.filter(r => g(r, 'Lambda1') < 0.9).length;
@@ -668,14 +668,15 @@ function analyze(rows, name, head) {
   }
 
   // накат / отсечка
-  const coast = sel(r => g(r, 'Pedal_pct') < 1 && g(r, 'RPM') > 1800 && g(r, 'Speed_kmh') > 20);
-  L(''); L('<span class="h">Накат (педаль 0, >1800 об, >20 км/ч)</span>');
+  const coast = sel(r => g(r, 'Pedal_pct') < 1 && (ix.Throttle_deg == null || g(r, 'Throttle_deg') < 1.5) && g(r, 'RPM') > 1500 && g(r, 'Speed_kmh') > 20);
+  L(''); L('<span class="h">Накат (педаль 0, дроссель закрыт, >1500 об, >20 км/ч)</span>');
   if (coast.length < 5) L('мало точек — запишите тест «Накат»');
   else {
-    const cut = coast.filter(r => g(r, 'Inj_ms') < 0.3).length;
-    L(`${coast.length} точек, впрыск 0 в ${cut} · впрыск мин ${fmt(mn(coast, 'Inj_ms'), 2)} мс · λ ${m(coast, 'Lambda1', 3)}`);
-    if (cut === 0 && coast.length > 15) L('Отсечка ни разу не сработала — на накате DME льёт топливо. В городе это 1–2 л/100. Проверить тестом «Накат» 5–6 с.', 'b');
-    else if (cut > 0) L('Отсечка работает.', 'g');
+    const cut = coast.filter(r => g(r, 'Inj_ms') < 1.3).length;
+    L(`${coast.length} точек, отсечка (впрыск <1.3 мс) в ${cut} (${(cut / coast.length * 100).toFixed(0)}%) · впрыск мин ${fmt(mn(coast, 'Inj_ms'), 2)} мс`);
+    for (const [lo, h2] of [[1500, 2000], [2000, 2500], [2500, 7000]]) { const s2 = coast.filter(r => g(r, 'RPM') >= lo && g(r, 'RPM') < h2); if (s2.length > 5) L(`  ${lo}–${h2} об: отсечка в ${(s2.filter(r => g(r, 'Inj_ms') < 1.3).length / s2.length * 100).toFixed(0)}% точек (${s2.length})`); }
+    if (cut === 0 && coast.length > 15) L('Отсечка ни разу не сработала — на накате DME льёт топливо. Проверить тестом «Накат» 5–6 с с 3000 об.', 'b');
+    else if (cut > 0) L('Отсечка работает' + (cut / coast.length < 0.5 ? ', но не на всех оборотах — ниже ~2000 об в D обычно не включается.' : '.'), 'g');
     else L('Сбросы короткие, отсечка не успела включиться — не вывод. Тест «Накат».', 'w');
   }
 
@@ -692,10 +693,9 @@ function analyze(rows, name, head) {
     }
     if (hi.length > 3) {
       const lam = mean(col(hi, 'Lambda1'));
-      if (lam > 0.95) L('На полном газу λ ≈ 1 — прошивка не обогащает, мотор недодаёт и греет выпуск.', 'w');
-      else if (lam < 0.82) L('На полном газу λ < 0.82 — переобогащение (форсунки крупнее, чем в прошивке?).', 'w');
-      else L('Обогащение на полном газу в норме.', 'g');
-      const load = mx(hi, 'Load_mg'); if (load < 650) L(`Нагрузка на полном газу всего ${load.toFixed(0)} мг — мотор не наполняется: DISA, впуск, ДМРВ, фазы, выпуск.`, 'b');
+      if (Math.abs(lam - 1) < 0.002) L('λ-регулятор замер на 1.000 — открытый контур, как и должно быть на WOT; реальную смесь этот параметр не показывает.', 'g');
+      else L('На полном газу регулятор не замер (' + lam.toFixed(3) + ') — DME не ушла в открытый контур, обогащения WOT нет.', 'w');
+      const load = mx(hi, 'Load_mg'); if (load < 400) L(`Нагрузка на полном газу всего ${load.toFixed(0)} мг (норма 430–500 = ~100% наполнения) — мотор не наполняется: DISA, впуск, ДМРВ, фазы, выпуск.`, 'b'); else L(`Наполнение ${load.toFixed(0)} мг/такт — полное (≈${(load / 4.9).toFixed(0)}% объёмного КПД).`, 'g');
     }
   }
 
