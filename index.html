@@ -647,11 +647,11 @@ function drawGauges(now) {
   const st = getComputedStyle(document.documentElement);
   const cs = { line: st.getPropertyValue('--line'), fg: st.getPropertyValue('--fg'), fg2: st.getPropertyValue('--fg2'), acc: st.getPropertyValue('--acc'), bad: st.getPropertyValue('--bad'), warn: st.getPropertyValue('--warn'), ok: st.getPropertyValue('--ok'), panel: st.getPropertyValue('--panel'), needle: st.getPropertyValue('--needle') };
   const wide = w > h * 1.1;
-  const R = wide ? Math.min(h * 0.24, w * 0.15) : Math.min(w * 0.26, h * 0.16);
-  const cy = wide ? h * 0.33 : h * 0.24;
+  const R = wide ? Math.min(h * 0.26, w * 0.16) : Math.min(w * 0.26, h * 0.17);
+  const cy = wide ? h * 0.36 : h * 0.25;
   const lx = wide ? w * 0.3 : w * 0.27, rx = wide ? w * 0.7 : w * 0.73;
   const r2 = wide ? Math.min(h * 0.115, w * 0.08) : Math.min(w * 0.12, h * 0.08);
-  const y2 = wide ? h * 0.82 : h * 0.64, xs = [w * 0.22, w * 0.5, w * 0.78];
+  const y2 = wide ? h * 0.8 : h * 0.63, xs = [w * 0.22, w * 0.5, w * 0.78];
   const key = `${w}x${h}x${dpr}${cs.fg}`;
   if (cv.width !== w * dpr || cv.height !== h * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
   if (gKey !== key) {
@@ -673,12 +673,11 @@ function drawGauges(now) {
   g.fillStyle = cs.acc; g.font = `600 ${Math.round(R * 0.3)}px system-ui`;
   g.fillText(rpm == null ? '—' : Math.round(rpm / 10) * 10, lx, cy + R * 0.28);
   g.fillText(spd == null ? '—' : Math.round(spd), rx, cy + R * 0.28);
-  // мгновенный расход под спидометром
-  g.fillStyle = cs.fg; g.font = `600 ${Math.round(R * 0.2)}px system-ui`;
-  g.fillText(cur.Fuel_l100 != null ? fmt(cur.Fuel_l100, 1) + ' л/100' : fmt(cur.Fuel_lh, 1) + ' л/ч', rx, cy + R * 1.22);
+  // мгновенный расход л/100 внутри круга спидометра (над цифрой скорости); на месте — л/ч мелко
+  g.fillStyle = cs.fg; g.font = `600 ${Math.round(R * 0.15)}px system-ui`;
+  g.fillText(cur.Fuel_l100 != null ? fmt(Math.min(cur.Fuel_l100, 99.9), 1) + ' л/100' : fmt(cur.Fuel_lh, 1) + ' л/ч', rx, cy - R * 0.12);
   g.fillStyle = cs.fg2; g.font = `${Math.round(R * 0.11)}px system-ui`;
-  g.fillText(cur.Fuel_l100 != null ? fmt(cur.Fuel_lh, 1) + ' л/ч' : 'на месте', rx, cy + R * 1.4);
-  if (cur.Turbine_rpm != null) { g.fillText(`ГДТ ${cur.TccLock ? 'закрыт' : 'открыт'} · скольж. ${fmt(cur.TccSlip_rpm, 0)} об`, lx, cy + R * 1.22); g.fillText(`ATF ${fmt(cur.ATF_C, 0)}° · ${PROG_TXT[cur.ProgCode >> 4] ?? ''}`, lx, cy + R * 1.4); }
+  if (cur.Turbine_rpm != null) { g.fillText(`ГДТ ${cur.TccLock ? 'закрыт' : 'открыт'} · скольж. ${fmt(cur.TccSlip_rpm, 0)}`, lx, cy - R * 0.14); g.fillText(`ATF ${fmt(cur.ATF_C, 0)}° · ${PROG_TXT[cur.ProgCode >> 4] ?? ''}`, lx, cy + R * 0.72); }
   const tcol = (v, warn, bad) => v == null ? cs.fg2 : v >= bad ? cs.bad : v >= warn ? cs.warn : cs.ok;
   arcVal(g, xs[0], y2, r2, 40, 130, cool, tcol(cool, 105, 115));
   arcVal(g, xs[1], y2, r2, 40, 140, atf, tcol(atf, 110, 125));
