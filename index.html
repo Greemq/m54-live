@@ -391,20 +391,30 @@ async function waitBytes(port, n, ms) {
   }
   return true;
 }
-async function ds2(port, cmdHex, addr = DME) {
+// очередь: один DS2-запрос за раз (консоль/тесты не перебивают основной опрос)
+let ds2Chain = Promise.resolve(), lastAddr = DME, lastDone = 0;
+function ds2(port, cmdHex, addr = DME) { const p = ds2Chain.then(() => ds2raw(port, cmdHex, addr)); ds2Chain = p.catch(() => {}); return p; }
+async function ds2raw(port, cmdHex, addr) {
   const tx = telegram(cmdHex, addr);
+  // пауза перед запросом к другому блоку: часть блоков (GS20) хочет тишины на линии
+  const gap = (addr !== lastAddr ? 60 : 8) - (performance.now() - lastDone); if (gap > 0) await sleep(gap);
+  lastAddr = addr;
+  try { return await ds2io(port, tx, addr); } finally { lastDone = performance.now(); }
+}
+async function ds2io(port, tx, addr) {
+  const tmo = addr === DME ? 1000 : 1500;
   port.rx.length = 0;
   await port.write(tx);
-  if (!await waitBytes(port, 2, 1000)) throw new Error('нет ответа от DME');
+  if (!await waitBytes(port, 2, tmo)) throw new Error('нет ответа от блока ' + addr.toString(16));
   // эхо K-line: первые байты повторяют запрос
   if (port.rx[0] === tx[0] && port.rx[1] === tx[1]) {
     await waitBytes(port, tx.length, 300);
     if (tx.every((v, i) => port.rx[i] === v)) port.rx.splice(0, tx.length);
-    if (!await waitBytes(port, 2, 1000)) throw new Error('нет ответа после эха');
+    if (!await waitBytes(port, 2, tmo)) throw new Error('нет ответа после эха');
   }
   if (port.rx[0] !== addr) throw new Error('неожиданный ответ ' + port.rx.slice(0, 4).map(x => x.toString(16)).join(' '));
   const n = port.rx[1];
-  if (!await waitBytes(port, n, 1000)) throw new Error('ответ оборвался');
+  if (!await waitBytes(port, n, tmo)) throw new Error('ответ оборвался');
   const r = port.rx.splice(0, n);
   let c = 0; for (let i = 0; i < n - 1; i++) c ^= r[i];
   if (c !== r[n - 1]) throw new Error('контрольная сумма');
