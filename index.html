@@ -670,12 +670,11 @@ function drawGauges(now) {
   g.fillStyle = cs.acc; g.font = `600 ${Math.round(R * 0.3)}px system-ui`;
   g.fillText(rpm == null ? '—' : Math.round(rpm / 10) * 10, lx, cy + R * 0.28);
   g.fillText(spd == null ? '—' : Math.round(spd), rx, cy + R * 0.28);
-  // мгновенный расход л/100 внутри круга спидометра (над цифрой скорости); на месте — л/ч мелко
-  g.fillStyle = cs.fg; g.font = `600 ${Math.round(R * 0.15)}px system-ui`;
-  g.fillText(cur.Fuel_l100 != null ? fmt(Math.min(cur.Fuel_l100, 99.9), 1) + ' л/100' : fmt(cur.Fuel_lh, 1) + ' л/ч', rx, cy - R * 0.12);
+  // мгновенный расход л/100 внизу круга спидометра; на месте — л/ч
+  g.fillStyle = cs.fg; g.font = `600 ${Math.round(R * 0.14)}px system-ui`;
+  g.fillText(cur.Fuel_l100 != null ? fmt(Math.min(cur.Fuel_l100, 99.9), 1) + ' л/100' : fmt(cur.Fuel_lh, 1) + ' л/ч', rx, cy + R * 0.74);
   g.fillStyle = cs.fg2; g.font = `${Math.round(R * 0.11)}px system-ui`;
-  if (cur.Turbine_rpm != null) { g.fillText(`ГДТ ${cur.TccLock ? 'закрыт' : 'открыт'} · скольж. ${fmt(cur.TccSlip_rpm, 0)}`, lx, cy - R * 0.14); g.fillText(`ATF ${fmt(cur.ATF_C, 0)}° · ${PROG_TXT[cur.ProgCode >> 4] ?? ''}`, rx, cy + R * 0.72); }
-  g.fillStyle = cs.fg; g.font = `600 ${Math.round(R * 0.14)}px system-ui`; g.fillText(fmt(cur.Fuel_lh, 1) + ' л/ч', lx, cy + R * 0.74);
+  if (cur.Turbine_rpm != null) { g.fillText(`ГДТ ${cur.TccLock ? 'закрыт' : 'открыт'} · скольж. ${fmt(cur.TccSlip_rpm, 0)}`, lx, cy - R * 0.14); g.fillText(`ATF ${fmt(cur.ATF_C, 0)}° · ${PROG_TXT[cur.ProgCode >> 4] ?? ''}`, lx, cy + R * 0.74); }
   const tcol = (v, warn, bad) => v == null ? cs.fg2 : v >= bad ? cs.bad : v >= warn ? cs.warn : cs.ok;
   arcVal(g, xs[0], y2, r2, 40, 130, cool, tcol(cool, 105, 115));
   arcVal(g, xs[1], y2, r2, 40, 140, atf, tcol(atf, 110, 125));
@@ -703,22 +702,42 @@ function drawGauges(now) {
 }
 
 function setLink(state, text) { $('btnConnect').className = 'ico' + (state === 'on' ? ' on' : state === 'err' ? ' err' : ''); $('stLink').textContent = state === 'on' ? (demo ? 'демо' : 'DME') : state === 'err' ? 'ошибка' : '—'; $('btnConnect').title = text; }
-function onLinkLost(e) { running = false; setLink('err', 'кабель отключён'); msg('Связь с кабелем потеряна: ' + (e && e.message || ''), true); $('btnConnect').disabled = false; }
+function onLinkLost(e) { running = false; const p = port; port = null; try { p && p.close(); } catch (x) {} setLink('err', 'кабель отключён'); msg('Связь с кабелем потеряна: ' + (e && e.message || '') + ' — переподключусь сам, как появится.', true); $('btnConnect').disabled = false; $('btnRec').disabled = true; }
 
 // ===== кнопки
+async function openDevice(dev) {
+  if (running && !demo) return;
+  if (demo) { running = false; demo = false; $('btnDemo2').classList.remove('on'); await sleep(300); }
+  port = new Ftdi(dev);
+  await port.open($('optDtr').checked, $('optRts').checked);
+  running = true; egsErr = 0; egsDead = false; $('btnConnect').disabled = true; $('btnRec').disabled = false;
+  setLink('on', 'кабель подключён'); msg('');
+  pollLoop();
+}
 $('btnConnect').onclick = async () => {
   if (!('usb' in navigator)) { msg('Этот браузер не умеет WebUSB. Нужен Google Chrome и адрес https://', true); return; }
   try {
     let dev;
     try { dev = await navigator.usb.requestDevice({ filters: [{ vendorId: 0x0403 }] }); }
     catch (e) { dev = await navigator.usb.requestDevice({ filters: [] }); }
-    port = new Ftdi(dev);
-    await port.open($('optDtr').checked, $('optRts').checked);
-    demo = false; running = true; egsErr = 0; egsDead = false; $('btnConnect').disabled = true; $('btnRec').disabled = false;
-    setLink('on', 'кабель подключён'); msg('');
-    pollLoop();
+    await openDevice(dev);
   } catch (e) { msg('Не удалось подключить: ' + e.message, true); }
 };
+// автоподключение: кабель, которому уже дали разрешение, открывается сам при загрузке и при втыкании
+let autoBusy = false;
+async function autoConnect() {
+  if (!('usb' in navigator) || autoBusy || (running && !demo)) return;
+  autoBusy = true;
+  try { const devs = await navigator.usb.getDevices(); const dev = devs.find(d => d.vendorId === 0x0403) || devs[0]; if (dev) await openDevice(dev); }
+  catch (e) { setLink('', 'кабель найден, но не открылся: ' + e.message); }
+  finally { autoBusy = false; }
+}
+if ('usb' in navigator) {
+  navigator.usb.addEventListener('connect', () => setTimeout(autoConnect, 500));
+  navigator.usb.addEventListener('disconnect', () => { if (port && !demo) onLinkLost(new Error('USB отключён')); });
+  setTimeout(autoConnect, 300);
+  setInterval(() => { if (!running) autoConnect(); }, 5000);
+}
 function startDemo() { if (running) { if (demo) { running = false; demo = false; setLink('', 'демо остановлено'); $('btnRec').disabled = true; $('btnDemo2').classList.remove('on'); } return; } demo = true; running = true; demoT0 = performance.now(); $('btnRec').disabled = false; msg(''); $('btnDemo2').classList.add('on'); pollLoop(); }
 $('btnDemo').onclick = startDemo; $('btnDemo2').onclick = startDemo;
 let wake = null;
