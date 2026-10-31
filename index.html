@@ -283,7 +283,7 @@ const msg = (t, err) => { $('msg').textContent = t; $('msg').className = 'msg' +
 
 // ===== FTDI через WebUSB
 class Ftdi {
-  constructor(dev) { this.dev = dev; this.rx = []; this.reading = false; }
+  constructor(dev) { this.dev = dev; this.rx = []; this.reading = false; this.waiters = []; }
   async ctl(req, value, index = 0) {
     const r = await this.dev.controlTransferOut({ requestType: 'vendor', recipient: 'device', request: req, value, index });
     if (r.status !== 'ok') throw new Error('FTDI control ' + req + ' ' + r.status);
@@ -316,6 +316,7 @@ class Ftdi {
         for (let i = 0; i < b.length; i += this.pkt) {     // у каждого пакета 2 байта статуса FTDI
           for (let j = i + 2; j < Math.min(i + this.pkt, b.length); j++) this.rx.push(b[j]);
         }
+        if (this.waiters.length) { const w = this.waiters; this.waiters = []; for (const f of w) f(); } // разбудить ждущих, без таймеров (в фоне Chrome их замедляет)
       } catch (e) { if (this.reading) { this.reading = false; onLinkLost(e); } }
     }
   }
@@ -335,7 +336,11 @@ function telegram(cmdHex, addr = DME) {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function waitBytes(port, n, ms) {
   const end = performance.now() + ms;
-  while (port.rx.length < n) { if (performance.now() > end) return false; await sleep(2); }
+  while (port.rx.length < n) {
+    if (performance.now() > end) return false;
+    if (!port.waiters) { await sleep(2); continue; }
+    await new Promise(res => { port.waiters.push(res); setTimeout(res, Math.max(1, end - performance.now())); }); // событие прихода байт или таймаут
+  }
   return true;
 }
 async function ds2(port, cmdHex, addr = DME) {
@@ -428,7 +433,7 @@ function testFrame(o, kind) {
 }
 
 async function pollLoop() {
-  let nextAdapt = 0, nextRough = 0;
+  let nextAdapt = 0, nextRough = 0, nextAuto = 0;
   while (running) {
     const t = performance.now();
     try {
@@ -444,6 +449,7 @@ async function pollLoop() {
       derived(cur); errs = 0; samples++;
       setLink('on', demo ? 'демо' : 'DME отвечает');
       if (rec) { rec.rows.push([((t - rec.t0) / 1000).toFixed(3), ...COLUMNS.map(c => cur[c] == null ? '' : typeof cur[c] === 'number' ? +cur[c].toFixed(4) : String(cur[c]))]); if (rec.name === 'wot' || rec.name === 'coast') testFrame(cur, rec.name); }
+      if (rec && t >= nextAuto) { nextAuto = t + 10000; autosave(rec); }
       hist.push([t, cur.VanosIn_deg, cur.VanosInSet_deg]); while (hist.length && t - hist[0][0] > 30000) hist.shift();
     } catch (e) {
       errs++; setLink('err', 'ошибка: ' + e.message);
@@ -645,13 +651,17 @@ $('btnConnect').onclick = async () => {
 };
 function startDemo() { if (running) { if (demo) { running = false; demo = false; setLink('', 'демо остановлено'); $('btnRec').disabled = true; } return; } demo = true; running = true; demoT0 = performance.now(); $('btnRec').disabled = false; msg('Демо-режим: данные выдуманные, чтобы проверить экран без машины. Нажмите «Демо» ещё раз, чтобы остановить.'); pollLoop(); }
 $('btnDemo').onclick = startDemo; $('btnDemo2').onclick = startDemo;
+let wake = null;
+async function keepAwake(on) { try { if (on && !wake && navigator.wakeLock) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => wake = null); } else if (!on && wake) { await wake.release(); wake = null; } } catch (e) {} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && rec) keepAwake(true); });
 $('btnRec').onclick = () => {
   if (!rec) {
+    keepAwake(true);
     rec = { t0: performance.now(), name: ($('runName').value || 'run').replace(/[^\w-]+/g, '_'), started: new Date(), rows: [], raw: [] };
     test.wot = test.coast = null; $('testBox').className = 'test' + (rec.name === 'wot' || rec.name === 'coast' ? ' on' : ''); $('testBox').textContent = '';
     $('btnRec').textContent = 'Стоп'; $('btnRec').className = 'rec'; $('btnSave').hidden = true; $('dotLink').classList.add('rec');
   } else {
-    const r = rec; rec = null; window.lastLog = r;
+    const r = rec; rec = null; window.lastLog = r; keepAwake(false);
     $('btnRec').textContent = 'Начать лог'; $('btnRec').className = ''; $('stRec').textContent = `лог готов: ${r.rows.length} строк`;
     $('btnSave').hidden = false; saveBackup(r);
     if (r.raw.length) saveRaw(r);
@@ -819,6 +829,10 @@ async function dbPut(rec) { const d = await idb(); return new Promise((res, rej)
 async function dbGet(name) { const d = await idb(); return new Promise((res, rej) => { const q = d.transaction('logs').objectStore('logs').get(name); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }
 async function dbDel(name) { const d = await idb(); return new Promise((res, rej) => { const q = d.transaction('logs', 'readwrite').objectStore('logs').delete(name); q.onsuccess = res; q.onerror = () => rej(q.error); }); }
 
+// автосохранение текущей записи: если Android выгрузит вкладку, лог не пропадёт
+async function autosave(r) {
+  try { await dbPut({ name: fileName(r), started: +r.started, run: r.name, csv: toCsv(r), rows: r.rows.length, uploaded: false, err: '', partial: true }); } catch (e) {}
+}
 async function saveBackup(r) {
   const rec = { name: fileName(r), started: +r.started, run: r.name, csv: toCsv(r), rows: r.rows.length, uploaded: false, err: '' };
   try { await dbPut(rec); } catch (e) { $('libMsg').textContent = 'Не удалось сохранить в память браузера: ' + e.message; return; }
@@ -858,20 +872,21 @@ async function uploadLog(rec) {
   } catch (e) { rec.err = e.message; await dbPut(rec); renderLib(); return false; }
   finally { upBusy = false; }
 }
-async function uploadPending() { let list = []; try { list = await dbAll(); } catch (e) { return; } for (const r of list) if (!r.uploaded) { if (!await uploadLog(r)) break; } }
+async function uploadPending() { let list = []; try { list = await dbAll(); } catch (e) { return; } for (const r of list) if (!r.uploaded && !r.partial) { if (!await uploadLog(r)) break; } }
 $('btnUpAll').onclick = uploadPending;
 addEventListener('online', uploadPending);
 $('ghTest').onclick = async () => { try { const r = await gh(''); $('ghMsg').textContent = 'OK: ' + r.full_name + (r.private ? ' (приватный)' : '') + ', запись: ' + (r.permissions && r.permissions.push ? 'да' : 'НЕТ'); uploadPending(); } catch (e) { $('ghMsg').textContent = 'Ошибка: ' + e.message; } };
 // --- список
 async function renderLib() {
   let list = []; try { list = await dbAll(); } catch (e) { $('libMsg').textContent = 'Память браузера недоступна: ' + e.message; return; }
+  for (const r of list) if (r.partial && !(rec && fileName(rec) === r.name)) { r.partial = false; r.recovered = true; try { await dbPut(r); } catch (e) {} }
   const box = $('lib'); box.innerHTML = '';
   if (!list.length) { box.innerHTML = '<div class="msg">Пока нет записей.</div>'; return; }
   const pend = list.filter(r => !r.uploaded).length;
   $('libMsg').textContent = `${list.length} записей · ${(list.reduce((s, r) => s + r.csv.length, 0) / 1048576).toFixed(1)} МБ` + (pend ? ` · не отправлено: ${pend}` : ghCfg().token ? ' · всё отправлено в GitHub' : ' · GitHub не настроен');
   for (const r of list) {
     const d = document.createElement('div'); d.className = 'row';
-    const st = r.uploaded ? '<span class="st up">✓ в GitHub</span>' : r.err ? `<span class="st err">ошибка: ${r.err}</span>` : '<span class="st">не отправлен</span>';
+    const st = r.partial ? '<span class="st">● пишется</span>' : r.uploaded ? '<span class="st up">✓ в GitHub</span>' : r.err ? `<span class="st err">ошибка: ${r.err}</span>` : (r.recovered ? '<span class="st">восстановлен после закрытия · </span>' : '') + '<span class="st">не отправлен</span>';
     d.innerHTML = `<span class="n">${r.name}<br><span class="st">${new Date(r.started).toLocaleString('ru-RU')} · ${r.rows} строк</span></span>${st}${r.run.endsWith('_ds2') ? '' : '<button data-a="an">Разобрать</button>'}<button data-a="dl">Скачать</button>${r.uploaded ? '' : '<button data-a="up">Отправить</button>'}<button data-a="del">Удалить</button>`;
     d.onclick = async e => {
       const a = e.target.dataset.a; if (!a) return;
