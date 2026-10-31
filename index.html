@@ -141,14 +141,48 @@ body.fs{padding:6px}body.fs .bar,body.fs .msg,body.fs .tabs{display:none}body.fs
 </div>
 <div class="msg">Равномерность: чем больше число, тем хуже горит цилиндр (на ХХ у здорового мотора все близки к нулю, выброс одного — форсунка/свеча/катушка/компрессия).</div>
 
-<h2>Колёса (DSC)</h2>
+<h2>АКПП (GS20)</h2>
+<div class="grid">
+  <div class="tile"><div class="k">Селектор / передача</div><div class="v t" id="vGear">—</div><div class="s">программа <span id="vProg">—</span></div></div>
+  <div class="tile" id="tTcc"><div class="k">Блокировка ГДТ</div><div class="v t" id="vTcc">—</div><div class="s">проскальзывание <span data-k="TccSlip_rpm" data-d="0">—</span> об</div></div>
+  <div class="tile"><div class="k">Турбина ГДТ</div><div class="v"><span data-k="Turbine_rpm" data-d="0">—</span><span class="u">об</span></div><div class="s">мотор по EGS <span data-k="EgsRPM" data-d="0">—</span></div></div>
+  <div class="tile"><div class="k">Выходной вал</div><div class="v"><span data-k="Output_rpm" data-d="0">—</span><span class="u">об</span></div></div>
+  <div class="tile" id="tAtf"><div class="k">Масло АКПП</div><div class="v"><span data-k="ATF_C" data-d="0">—</span><span class="u">°C</span></div><div class="s">старение <span data-k="AtfAging_pct" data-d="0">—</span> %</div></div>
+  <div class="tile"><div class="k">Переключение</div><div class="v t" id="vShift">—</div><div class="s">последнее <span id="vLastShift">—</span></div></div>
+  <div class="tile"><div class="k">Соленоиды MV1/2/3 · SL</div><div class="v t" id="vMV">—</div><div class="s">EDS1 <span data-k="Eds1_mA" data-d="0">—</span> мА · EDS4 <span data-k="Eds4_pct" data-d="0">—</span> %</div></div>
+  <div class="tile"><div class="k">Кикдаун / ASC / аварийный</div><div class="v t" id="vKd">—</div><div class="s">дроссель по EGS <span data-k="EgsThrottle_pct" data-d="0">—</span> % · <span data-k="EgsUbat_V" data-d="1">—</span> В</div></div>
+</div>
+
+<h2>Колёса (по EGS, шаг 2 км/ч)</h2>
 <div class="grid">
   <div class="tile"><div class="k">Перед лев.</div><div class="v"><span data-k="WheelFL_kmh" data-d="1">—</span><span class="u">км/ч</span></div></div>
   <div class="tile"><div class="k">Перед прав.</div><div class="v"><span data-k="WheelFR_kmh" data-d="1">—</span><span class="u">км/ч</span></div></div>
   <div class="tile"><div class="k">Зад лев.</div><div class="v"><span data-k="WheelRL_kmh" data-d="1">—</span><span class="u">км/ч</span></div></div>
   <div class="tile"><div class="k">Зад прав.</div><div class="v"><span data-k="WheelRR_kmh" data-d="1">—</span><span class="u">км/ч</span></div></div>
-  <div class="tile" id="tAxle"><div class="k">Перед − зад</div><div class="v"><span data-k="AxleDiff_kmh" data-d="1">—</span><span class="u">км/ч</span></div><div class="s">раздатка: &gt;2 км/ч на ровной — пробуксовка</div></div>
+  <div class="tile" id="tAxle"><div class="k">Перед − зад</div><div class="v"><span data-k="AxleDiff_kmh" data-d="1">—</span><span class="u">км/ч</span></div><div class="s">раздатка: &gt;3 км/ч на ровной — пробуксовка</div></div>
 </div>
+
+<h2>Дроссель, педаль, холостой — подробно</h2>
+<div class="grid">
+  <div class="tile"><div class="k">Педаль дорожка 1 / 2</div><div class="v"><span data-k="Pedal1_deg" data-d="1">—</span><span class="u">°</span></div><div class="s"><span data-k="Pedal2_deg" data-d="1">—</span>°</div></div>
+  <div class="tile"><div class="k">Дроссель поти 1 / 2</div><div class="v"><span data-k="Throttle1_deg" data-d="1">—</span><span class="u">°</span></div><div class="s"><span data-k="Throttle2_deg" data-d="1">—</span>°</div></div>
+  <div class="tile"><div class="k">Адаптация ХХ</div><div class="v"><span data-k="IdleAdapt_pct" data-d="2">—</span><span class="u">%</span></div><div class="s">в D <span data-k="IdleAdaptDrive_pct" data-d="2">—</span> % · с AC <span data-k="IdleAdaptAC_pct" data-d="2">—</span> %</div></div>
+  <div class="tile"><div class="k">Регулятор ХХ / клапан</div><div class="v"><span data-k="IdleInt_pct" data-d="1">—</span><span class="u">%</span></div><div class="s">ISAPWM <span data-k="IdleAdapt_pct" data-d="1">—</span> %</div></div>
+  <div class="tile"><div class="k">Адаптация ДЗ мех. 1 / 2</div><div class="v"><span data-k="ThrAdMech1_V" data-d="3">—</span><span class="u">В</span></div><div class="s"><span data-k="ThrAdMech2_V" data-d="3">—</span> В · эл. <span data-k="ThrAdEl1_V" data-d="3">—</span> / <span data-k="ThrAdEl2_V" data-d="3">—</span> В</div></div>
+  <div class="tile"><div class="k">Электровентилятор (запрос)</div><div class="v"><span data-k="EFanReq_pct" data-d="0">—</span><span class="u">%</span></div></div>
+  <div class="tile"><div class="k">Давление воздуха</div><div class="v"><span data-k="Baro_hPa" data-d="0">—</span><span class="u">гПа</span></div></div>
+</div>
+
+<h2>Лямбда-зонды и катализаторы</h2>
+<div class="grid">
+  <div class="tile"><div class="k">Подогрев зондов до кат. 1 / 2</div><div class="v"><span data-k="LsHeatUp1_pct" data-d="0">—</span><span class="u">%</span></div><div class="s"><span data-k="LsHeatUp2_pct" data-d="0">—</span> %</div></div>
+  <div class="tile"><div class="k">Подогрев зондов после кат. 1 / 2</div><div class="v"><span data-k="LsHeatDn1_pct" data-d="0">—</span><span class="u">%</span></div><div class="s"><span data-k="LsHeatDn2_pct" data-d="0">—</span> %</div></div>
+  <div class="tile"><div class="k">Диагностика кат. 1 / 2</div><div class="v"><span data-k="CatDiag1" data-d="2">—</span></div><div class="s"><span data-k="CatDiag2" data-d="2">—</span></div></div>
+  <div class="tile"><div class="k">Готовность зондов</div><div class="v t" id="vLsh">—</div></div>
+</div>
+
+<h2>Все флаги DME</h2>
+<div class="tile" style="margin-bottom:8px"><div class="s" id="vFlags" style="color:var(--fg);line-height:1.6">—</div></div>
 
 <h2>VANOS — факт / цель</h2>
 <div class="grid">
@@ -219,6 +253,7 @@ body.fs{padding:6px}body.fs .bar,body.fs .msg,body.fs .tabs{display:none}body.fs
   <label><input type="checkbox" id="optDtr"> DTR</label>
   <label><input type="checkbox" id="optRts"> RTS</label>
   <label><input type="checkbox" id="optVanos" checked> Опрашивать цели VANOS</label>
+  <label><input type="checkbox" id="optEgs" checked> Опрашивать АКПП (GS20, 0x32)</label>
   <label><button id="btnDemo">Демо без машины</button></label>
   <p>Расход «по впрыску» считается из времени открытия форсунок (минус ~1 мс мёртвого времени) при 237 см³/мин. «По ДМРВ» — из воздуха при лямбде 1, на сбросе газа и при обогащении врёт.</p>
   <p>DTR/RTS переключают режим у некоторых кабелей K+DCAN. Если DME не отвечает — попробуйте включить DTR и переподключиться.</p>
@@ -258,7 +293,23 @@ const BLOCK_MAIN = ['0B03', [
   ['VanosIn_deg',23,2,0.375,60],['VanosEx_deg',24,3,-0.375,-60],['Lambda1',26,5,0.000015259,0.5],['Lambda2',28,5,0.000015259,0.5],
   ['Coolant_C',13,2,0.75,-48],['RadOut_C',15,2,0.75,-48],['IAT_C',12,2,0.75,-48],['Oil_C',14,2,0.796,-48],
   ['IdleInt_pct',19,7,0.0015,0],['Baro_hPa',41,5,0.08292,0],['Ubatt_V',43,2,0.10156,0],
-  ['Knock2_V',36,5,0.0000778,0],['Knock5_V',38,5,0.0000778,0]]];
+  ['Knock2_V',36,5,0.0000778,0],['Knock5_V',38,5,0.0000778,0],
+  ['LsHeatUp1_pct',30,2,0.391,0],['LsHeatUp2_pct',31,2,0.391,0],['LsHeatDn1_pct',32,2,0.391,0],['LsHeatDn2_pct',33,2,0.391,0],['EFanReq_pct',40,2,0.39063,0]]];
+// 0B92: адаптации ХХ, обе дорожки педали и дросселя, адаптация дросселя
+const BLOCK_IDLEAD = ['0B92', [['IdleAdapt_pct',3,7,0.001526,0],['IdleAdaptDrive_pct',5,7,0.001526,0],['IdleAdaptAC_pct',7,7,0.001526,0],['Pedal1_deg',9,5,0.0018311,0],['Pedal2_deg',11,5,0.0018311,0],['Throttle1_deg',13,5,0.007294,0],['Throttle2_deg',15,5,0.007294,0],['ThrAdMech1_V',17,5,0.0048828,0],['ThrAdMech2_V',19,5,0.0048828,0],['ThrAdEl1_V',21,5,0.0048828,0],['ThrAdEl2_V',23,5,0.0048828,0],['ThrAdLih1_V',25,5,0.0048828,0],['ThrAdLih2_V',27,5,0.0048828,0]]];
+// 0B99: диагностика катализаторов/зондов
+const BLOCK_CAT = ['0B99', [['CatDiag1',3,5,0.0039,0],['CatDiag2',5,5,0.0039,0],['LsAfr1',7,5,0.0039,0],['LsAfr2',9,5,0.0039,0]]];
+// EGS GS20 (адрес 0x32, команда 0B03): обороты турбины/выхода, ATF, колёса, передача, селектор, блокировка ГДТ
+const EGS = 0x32;
+const BLOCK_EGS = ['0B03', [['EgsRPM',3,2,32,0],['Turbine_rpm',4,2,32,0],['Output_rpm',5,2,32,0],['EgsThrottle_pct',6,2,0.3957,0],['AtfAging_pct',7,2,0.3922,0],['EgsEngT_C',8,2,1,-40],['ATF_C',9,2,1,-40],['EgsUbat_V',10,2,0.125,0],
+  ['WheelFL_kmh',11,2,2,0],['WheelFR_kmh',12,2,2,0],['WheelRL_kmh',13,2,2,0],['WheelRR_kmh',14,2,2,0],['Eds1_mA',15,2,4.8828,0],['Eds4_pct',18,2,0.3922,0]], EGS];
+const BITS_EGS = [['MV1',20,0x80,0x80],['MV2',20,0x40,0x40],['MV3',20,0x20,0x20],['TccLock',20,0x04,0x04],['MVSL',20,0x02,0x02],['EgsBrake',20,0x01,0x01],
+  ['SelCode',21,0xF0,null],['ProgBtn',21,0x0C,null],['Steptronic',21,0x02,0x02],['EgsLimp',21,0x01,0x01],
+  ['EgsCruise',22,0xE0,null],['AscReg',22,0x10,0x10],['AscBtn',22,0x08,0x08],
+  ['GearCode',23,0xE0,null],['Kickdown',23,0x10,0x10],['TipDown',23,0x02,0x02],['TipUp',23,0x01,0x01],
+  ['Shifting',24,0x80,0x80],['GearEngage',24,0x40,0x40],['Upshift',24,0x20,0x20],['Downshift',24,0x10,0x10],['LastShift',24,0x0F,null],
+  ['ProgCode',25,0xF0,null],['StepShift',25,0x01,0x01]];
+const SEL_TXT = ['P', 'R', 'N', 'D', '4', '3', '2'], SHIFT_TXT = ['1→2', '2→3', '3→4', '4→5', '5→4', '4→3', '3→2', '2→1', 'P/N→D', 'R→D', 'P/N→R', 'D→R'], PROG_TXT = ['XE', 'E', 'S', 'XS', 'Adaptiv 1', 'Adaptiv 2', 'Adaptiv 3', 'Winter', 'Manuell', 'Sonder S0', 'Sonder B0', 'Manuell 1'];
 const BLOCK_VANOS = ['0B90', [['VanosInSet_deg',4,2,0.375,60],['VanosInRef_deg',5,5,0.001465,60],['VanosExSet_deg',10,2,-0.375,-60],['VanosExRef_deg',11,5,-0.001465,-60]]];
 const BLOCK_ADAPT = ['0B91', [['AdaptAdd1_ms',4,5,0.004,-131.072],['AdaptMul1_pct',6,5,0.001526,-50],['AdaptAdd2_ms',8,5,0.004,-131.072],['AdaptMul2_pct',10,5,0.001526,-50]]];
 const BLOCK_RON = ['0B93', [['OctaneFactor',3,5,0.00001526,0]]];
@@ -270,13 +321,14 @@ const BLOCK_TQI = ['0B96', [['TqiMax_Nm',3,7,1,0],['TqiMaxT_s',5,5,0.01,0],['Tqi
 // 0BA2: перекрут
 const BLOCK_OVERREV = ['0BA2', [['OverrevMax',3,5,0.15625,0],['OverrevMin',5,5,6,0],['OverrevCount',7,2,1,0]]];
 // 0B04: битовые состояния DME (BYTE от начала данных после A0)
-const BITS_DIGITAL = [['LoadState',0,0x03,null],['SwAC',0,0x40,0x40],['SwCruise',0,0x20,0x20],['SwBrake',0,0x08,0x08],
-  ['ClosedLoop2',1,0x80,0x80],['ClosedLoop1',1,0x40,0x40],['DfcoFlag',1,0x20,0x20],['Overrun',1,0x10,0x10],['GearIn',1,0x04,0x04],['EgsInt',1,0x02,0x02],
-  ['ExhFlap',2,0x08,0x08],['AcRelay',2,0x02,0x02],['FuelPump',2,0x01,0x01],
-  ['CatHeat',3,0x80,0x80],['MIL',3,0x10,0x10],['Purge',3,0x08,0x08],['DISA',3,0x04,0x04],['AscInt',3,0x02,0x02],
-  ['CruiseActive',4,0x80,0x80],['VanosActive',5,0x80,0x80]];
-const EXTRA_COLS = ['WheelFL_kmh', 'WheelFR_kmh', 'WheelRL_kmh', 'WheelRR_kmh', 'ATF_C', 'Gear', 'GearSel'];
-const COLUMNS = [...BLOCK_MAIN[1], ...BLOCK_VANOS[1], ...BLOCK_ADAPT[1], ...BLOCK_RON[1], ...BLOCK_ROUGH[1], ...BLOCK_TQI[1]].map(c => c[0]).concat(BITS_DIGITAL.map(b => b[0])).concat(EXTRA_COLS);
+const BITS_DIGITAL = [['LoadState',0,0x03,null],['SwKO',0,0x80,0x80],['SwAC',0,0x40,0x40],['SwCruise',0,0x20,0x20],['SwClutch',0,0x10,0x10],['SwBrake',0,0x08,0x08],['SwBrakeTest',0,0x04,0x04],
+  ['ClosedLoop2',1,0x80,0x80],['ClosedLoop1',1,0x40,0x40],['DfcoFlag',1,0x20,0x20],['Overrun',1,0x10,0x10],['Starting',1,0x08,0x08],['GearIn',1,0x04,0x04],['EgsInt',1,0x02,0x02],['CanOk',1,0x01,0x01],
+  ['SLV',2,0x80,0x80],['SLP',2,0x40,0x40],['SSP',2,0x20,0x20],['RLV',2,0x10,0x10],['ExhFlap',2,0x08,0x08],['DMTL',2,0x04,0x04],['AcRelay',2,0x02,0x02],['FuelPump',2,0x01,0x01],
+  ['CatHeat',3,0x80,0x80],['DmtlValve',3,0x40,0x40],['EmlLamp',3,0x20,0x20],['MIL',3,0x10,0x10],['Purge',3,0x08,0x08],['DISA',3,0x04,0x04],['AscInt',3,0x02,0x02],['TmotStat',3,0x01,0x01],
+  ['CruiseActive',4,0x80,0x80],['CruiseDecel',4,0x40,0x40],['CruiseResume',4,0x20,0x20],['CruiseAccel',4,0x10,0x10],['CruiseTipDown',4,0x08,0x08],['CruiseTipUp',4,0x04,0x04],['CruiseOff',4,0x02,0x02],['CruiseHardOff',4,0x01,0x01],
+  ['VanosActive',5,0x80,0x80],['VanosReady',5,0x40,0x40],['VanosPassive',5,0x20,0x20],['CrankAdaptOk',5,0x10,0x10],['LshDn2',5,0x08,0x08],['LshDn1',5,0x04,0x04],['LshUp2',5,0x02,0x02],['LshUp1',5,0x01,0x01]];
+const EXTRA_COLS = ['Gear', 'GearSel', 'TccSlip_rpm', 'AxleDiff_kmh'];
+const COLUMNS = [...BLOCK_MAIN[1], ...BLOCK_VANOS[1], ...BLOCK_ADAPT[1], ...BLOCK_RON[1], ...BLOCK_ROUGH[1], ...BLOCK_TQI[1], ...BLOCK_IDLEAD[1], ...BLOCK_CAT[1], ...BLOCK_EGS[1]].map(c => c[0]).concat(BITS_DIGITAL.map(b => b[0])).concat(BITS_EGS.map(b => b[0])).concat(EXTRA_COLS);
 
 const $ = id => document.getElementById(id);
 const msg = (t, err) => { $('msg').textContent = t; $('msg').className = 'msg' + (err ? ' err' : ''); };
@@ -373,13 +425,13 @@ async function readBlock(port, [cmd, fields, addr], out) {
   const r = await ds2(port, cmd, addr ?? DME);
   for (const [k, p, t, a, b] of fields) if (p + (t >= 5 ? 1 : 0) < r.length - 1) out[k] = raw(r, p, t) * a + b;
 }
-async function readBits(port, cmd, bits, out) {
-  const r = await ds2(port, cmd);
+async function readBits(port, cmd, bits, out, addr = DME) {
+  const r = await ds2(port, cmd, addr);
   for (const [k, byte, mask, val] of bits) { const b = r[3 + byte]; if (b == null) continue; out[k] = val == null ? (b & mask) : ((b & mask) === val ? 1 : 0); }
 }
 
 // ===== состояние
-let port = null, running = false, demo = false;
+let port = null, running = false, demo = false, egsErr = 0, egsDead = false;
 const cur = {}; let rec = null; const hist = [];
 let samples = 0, lastRateT = performance.now(), errs = 0;
 
@@ -391,6 +443,7 @@ function derived(o) {
   if (o.MAF_kgh != null) o.FuelMaf_lh = o.MAF_kgh / 14.7 / 0.745;
   if (o.RPM != null && o.Inj_ms != null) { o.Fuel_lh = fuelLh(o.RPM, o.Inj_ms, injFlow()); o.Fuel_l100 = o.Speed_kmh > 3 ? o.Fuel_lh / o.Speed_kmh * 100 : null; }
   if (o.WheelFL_kmh != null && o.WheelRR_kmh != null) o.AxleDiff_kmh = (o.WheelFL_kmh + o.WheelFR_kmh) / 2 - (o.WheelRL_kmh + o.WheelRR_kmh) / 2;
+  if (o.SelCode != null) { const sc = o.SelCode >> 4; o.GearSel = SEL_TXT[sc] ?? '?'; o.Gear = o.GearCode ? (o.GearCode >> 5) : null; o.TccSlip_rpm = o.EgsRPM != null && o.Turbine_rpm != null ? o.EgsRPM - o.Turbine_rpm : null; }
   if (o.VanosInSet_deg != null) o.VanosInErr = o.VanosIn_deg - o.VanosInSet_deg;
   if (o.VanosExSet_deg != null) o.VanosExErr = o.VanosEx_deg - o.VanosExSet_deg;
   dfco(o);
@@ -442,8 +495,9 @@ async function pollLoop() {
         await readBlock(port, BLOCK_MAIN, cur);
         if ($('optVanos').checked) await readBlock(port, BLOCK_VANOS, cur);
         await readBits(port, '0B04', BITS_DIGITAL, cur);
+        if ($('optEgs').checked && !egsDead) { try { await readBlock(port, BLOCK_EGS, cur); await readBits(port, '0B03', BITS_EGS, cur, EGS); egsErr = 0; } catch (e) { if (++egsErr > 5) { egsDead = true; msg('Блок АКПП (0x32) не отвечает — опрос EGS выключен до переподключения.'); } } }
         if (t >= nextRough) { await readBlock(port, BLOCK_ROUGH, cur); nextRough = t + 1000; }
-        if (t >= nextAdapt) { await readBlock(port, BLOCK_ADAPT, cur); await readBlock(port, BLOCK_RON, cur); await readBlock(port, BLOCK_TQI, cur); await readBlock(port, BLOCK_OVERREV, cur); nextAdapt = t + 5000; }
+        if (t >= nextAdapt) { await readBlock(port, BLOCK_ADAPT, cur); await readBlock(port, BLOCK_RON, cur); await readBlock(port, BLOCK_TQI, cur); await readBlock(port, BLOCK_OVERREV, cur); await readBlock(port, BLOCK_IDLEAD, cur); try { await readBlock(port, BLOCK_CAT, cur); } catch (e) {} nextAdapt = t + 5000; }
         if ($('dsLive').checked && !dsBusy) await dsPoll();
       }
       derived(cur); errs = 0; samples++;
@@ -480,6 +534,19 @@ function render() {
   $('vAC').textContent = cur.AcRelay == null ? '—' : cur.AcRelay ? 'компрессор вкл' : cur.SwAC ? 'запрос, выкл' : 'выкл';
   $('vDisa').textContent = cur.DISA == null ? '—' : (cur.DISA ? 'DISA вкл' : 'DISA выкл') + ' / ' + (cur.ExhFlap ? 'открыта' : 'закрыта');
   $('vCruise').textContent = cur.CruiseActive == null ? '—' : (cur.CruiseActive ? 'круиз' : '—') + ' / ' + (cur.SwBrake ? 'тормоз' : '—');
+  if (cur.SelCode != null) {
+    $('vGear').textContent = (cur.GearSel ?? '—') + (cur.Gear ? ' · ' + cur.Gear + '-я' : '') + (cur.Steptronic ? ' · M' : '');
+    $('vProg').textContent = PROG_TXT[cur.ProgCode >> 4] ?? cur.ProgCode;
+    $('vTcc').textContent = cur.TccLock ? 'заблокирован' : 'открыт'; $('tTcc').className = 'tile' + (cur.TccLock ? ' ok' : '');
+    $('vShift').textContent = cur.Shifting ? (cur.Upshift ? 'вверх' : cur.Downshift ? 'вниз' : 'идёт') : cur.GearEngage ? 'включение' : '—';
+    $('vLastShift').textContent = SHIFT_TXT[cur.LastShift] ?? '—';
+    $('vMV').textContent = [cur.MV1, cur.MV2, cur.MV3, cur.MVSL].map(v => v ? '●' : '○').join(' ');
+    $('vKd').textContent = [cur.Kickdown ? 'кикдаун' : null, cur.AscReg ? 'ASC' : null, cur.EgsLimp ? 'АВАРИЙНЫЙ' : null, cur.EgsBrake ? 'тормоз' : null].filter(Boolean).join(' · ') || '—';
+    const a = cur.ATF_C ?? 0; $('tAtf').className = 'tile' + (a > 125 ? ' bad' : a > 110 ? ' warn' : '');
+  }
+  $('vLsh').textContent = cur.LshUp1 == null ? '—' : ['до1', 'до2', 'после1', 'после2'].map((n, i) => n + ([cur.LshUp1, cur.LshUp2, cur.LshDn1, cur.LshDn2][i] ? '✓' : '✗')).join(' ');
+  if (cur.LoadState != null) { const names = { SwKO: 'запрос КО', SwAC: 'AC', SwCruise: 'круиз-кнопка', SwClutch: 'сцепление', SwBrake: 'тормоз', SwBrakeTest: 'тормоз-тест', ClosedLoop1: 'λ1 замкнут', ClosedLoop2: 'λ2 замкнут', DfcoFlag: 'ОТСЕЧКА', Overrun: 'накат', Starting: 'пуск', GearIn: 'передача', EgsInt: 'срез EGS', CanOk: 'CAN', SLV: 'SLV', SLP: 'SLP', SSP: 'SSP', RLV: 'RLV', ExhFlap: 'заслонка выпуска', DMTL: 'DMTL', AcRelay: 'реле компрессора', FuelPump: 'бензонасос', CatHeat: 'прогрев кат.', DmtlValve: 'клапан DMTL', EmlLamp: 'лампа EML', MIL: 'MIL', Purge: 'адсорбер', DISA: 'DISA', AscInt: 'срез ASC', TmotStat: 'Tmot', CruiseActive: 'круиз', CruiseDecel: 'круиз−', CruiseResume: 'круиз resume', CruiseAccel: 'круиз+', CruiseOff: 'круиз выкл', VanosActive: 'VANOS активен', VanosReady: 'VANOS готов', VanosPassive: 'VANOS пассив', CrankAdaptOk: 'адапт. ДПКВ ок' };
+    $('vFlags').textContent = Object.keys(names).filter(k => cur[k]).map(k => names[k]).join(' · ') || 'нет активных'; }
   $('vDfco').textContent = cur.Dfco ?? '—';
   $('sDfco').textContent = cur.Dfco == null ? 'педаль 0, >1500 об' : `накат ${cur.DfcoT.toFixed(1)} с · впрыск ${fmt(cur.Inj_ms, 2)} мс`;
   $('tDfco').className = 'tile' + (cur.Dfco === 'да' ? ' ok' : cur.Dfco === 'НЕТ' ? ' bad' : '');
@@ -580,11 +647,11 @@ function drawGauges(now) {
   const st = getComputedStyle(document.documentElement);
   const cs = { line: st.getPropertyValue('--line'), fg: st.getPropertyValue('--fg'), fg2: st.getPropertyValue('--fg2'), acc: st.getPropertyValue('--acc'), bad: st.getPropertyValue('--bad'), warn: st.getPropertyValue('--warn'), ok: st.getPropertyValue('--ok'), panel: st.getPropertyValue('--panel'), needle: st.getPropertyValue('--needle') };
   const wide = w > h * 1.1;
-  const R = wide ? Math.min(h * 0.25, w * 0.15) : Math.min(w * 0.26, h * 0.17);
-  const cy = wide ? h * 0.36 : h * 0.26;
+  const R = wide ? Math.min(h * 0.24, w * 0.15) : Math.min(w * 0.26, h * 0.16);
+  const cy = wide ? h * 0.33 : h * 0.24;
   const lx = wide ? w * 0.3 : w * 0.27, rx = wide ? w * 0.7 : w * 0.73;
-  const r2 = wide ? Math.min(h * 0.12, w * 0.08) : Math.min(w * 0.12, h * 0.09);
-  const y2 = wide ? h * 0.78 : h * 0.62, xs = [w * 0.22, w * 0.5, w * 0.78];
+  const r2 = wide ? Math.min(h * 0.115, w * 0.08) : Math.min(w * 0.12, h * 0.08);
+  const y2 = wide ? h * 0.82 : h * 0.64, xs = [w * 0.22, w * 0.5, w * 0.78];
   const key = `${w}x${h}x${dpr}${cs.fg}`;
   if (cv.width !== w * dpr || cv.height !== h * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
   if (gKey !== key) {
@@ -606,6 +673,12 @@ function drawGauges(now) {
   g.fillStyle = cs.acc; g.font = `600 ${Math.round(R * 0.3)}px system-ui`;
   g.fillText(rpm == null ? '—' : Math.round(rpm / 10) * 10, lx, cy + R * 0.28);
   g.fillText(spd == null ? '—' : Math.round(spd), rx, cy + R * 0.28);
+  // мгновенный расход под спидометром
+  g.fillStyle = cs.fg; g.font = `600 ${Math.round(R * 0.2)}px system-ui`;
+  g.fillText(cur.Fuel_l100 != null ? fmt(cur.Fuel_l100, 1) + ' л/100' : fmt(cur.Fuel_lh, 1) + ' л/ч', rx, cy + R * 1.22);
+  g.fillStyle = cs.fg2; g.font = `${Math.round(R * 0.11)}px system-ui`;
+  g.fillText(cur.Fuel_l100 != null ? fmt(cur.Fuel_lh, 1) + ' л/ч' : 'на месте', rx, cy + R * 1.4);
+  if (cur.Turbine_rpm != null) { g.fillText(`ГДТ ${cur.TccLock ? 'закрыт' : 'открыт'} · скольж. ${fmt(cur.TccSlip_rpm, 0)} об`, lx, cy + R * 1.22); g.fillText(`ATF ${fmt(cur.ATF_C, 0)}° · ${PROG_TXT[cur.ProgCode >> 4] ?? ''}`, lx, cy + R * 1.4); }
   const tcol = (v, warn, bad) => v == null ? cs.fg2 : v >= bad ? cs.bad : v >= warn ? cs.warn : cs.ok;
   arcVal(g, xs[0], y2, r2, 40, 130, cool, tcol(cool, 105, 115));
   arcVal(g, xs[1], y2, r2, 40, 140, atf, tcol(atf, 110, 125));
@@ -619,7 +692,7 @@ function drawGauges(now) {
   const sel = cur.GearSel, gear = cur.Gear;
   g.font = `600 ${Math.round(R * 0.16)}px system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle';
   items.forEach((it, i) => {
-    const y = gy0 + gh * (i + 0.5) / items.length, on = it === sel || (sel === 'D' || sel === 'S') && it === String(gear);
+    const drive = ['D', '4', '3', '2'].includes(sel), y = gy0 + gh * (i + 0.5) / items.length, on = (it === sel) || (drive && it === (cur.Steptronic ? 'S' : 'D')) || (drive && it === String(gear));
     if (on) { g.fillStyle = cs.acc; g.beginPath(); g.roundRect(gx - R * 0.14, y - gh / items.length * 0.42, R * 0.28, gh / items.length * 0.84, 6); g.fill(); }
     g.fillStyle = on ? '#1a1000' : cs.fg2; g.globalAlpha = on ? 1 : .6; g.fillText(it, gx, y); g.globalAlpha = 1;
   });
@@ -644,7 +717,7 @@ $('btnConnect').onclick = async () => {
     catch (e) { dev = await navigator.usb.requestDevice({ filters: [] }); }
     port = new Ftdi(dev);
     await port.open($('optDtr').checked, $('optRts').checked);
-    demo = false; running = true; $('btnConnect').disabled = true; $('btnRec').disabled = false;
+    demo = false; running = true; egsErr = 0; egsDead = false; $('btnConnect').disabled = true; $('btnRec').disabled = false;
     setLink('on', 'кабель подключён'); msg('Кабель подключён: ' + (dev.productName || 'USB') + '. Опрашиваю DME…');
     pollLoop();
   } catch (e) { msg('Не удалось подключить: ' + e.message, true); }
@@ -958,7 +1031,6 @@ function demoFrame(o, t) {
   else if (cyc < 34) { ped = 25; spd = 40 + Math.sin((cyc - 26) * 1.2) * 8; } // крейсер
   else { ped = 0; spd = Math.max(0, 40 - (cyc - 34) * 8); }            // торможение
   gear = spd < 25 ? 1 : spd < 55 ? 2 : spd < 85 ? 3 : 4;
-  o.GearSel = cyc < 2 ? 'P' : 'D'; o.Gear = cyc < 2 ? null : gear;
   const slip = ped > 50 && spd < 30 ? 3 : 0; o.WheelFL_kmh = spd + slip * 0.6 + Math.sin(s * 5) * 0.3; o.WheelFR_kmh = spd + slip * 0.6 - Math.sin(s * 4) * 0.3; o.WheelRL_kmh = spd + slip + Math.sin(s * 6) * 0.3; o.WheelRR_kmh = spd + slip - Math.sin(s * 3) * 0.3;
   const ratio = [0, 110, 62, 40, 28][gear];
   const rpmDrive = spd > 2 ? spd * ratio : 0;
@@ -974,6 +1046,8 @@ function demoFrame(o, t) {
   o.Lambda1 = coast ? 1.4 : ped > 60 ? 0.87 : 1 + Math.sin(s * 2.1) * 0.03; o.Lambda2 = o.Lambda1 + Math.sin(s * 1.7 + 1) * 0.01;
   o.AdaptMul1_pct = -5.4; o.AdaptMul2_pct = -3.7; o.AdaptAdd1_ms = 0.184; o.AdaptAdd2_ms = 0.168; o.OctaneFactor = 0;
   const warm = Math.min(1, s / 120);
+  o.SelCode = (cyc < 2 ? 0 : 3) << 4; o.GearCode = (cyc < 2 ? 0 : gear) << 5; o.Steptronic = 0; o.ProgCode = 0; o.EgsRPM = o.RPM; o.Turbine_rpm = spd > 5 ? o.RPM - (ped > 50 ? 400 : spd > 60 && ped < 40 ? 0 : 120) : (ped > 0 ? 1200 : 0); o.TccLock = spd > 60 && ped < 40 ? 1 : 0; o.Output_rpm = Math.round(spd * 28); o.ATF_C = 30 + warm * 55; o.AtfAging_pct = 37; o.EgsThrottle_pct = ped; o.EgsUbat_V = 13.8; o.MV1 = gear % 2; o.MV2 = gear > 2 ? 1 : 0; o.MV3 = 0; o.MVSL = 1; o.Shifting = 0; o.LastShift = 1; o.Kickdown = 0; o.EgsLimp = 0; o.AscReg = 0; o.Eds1_mA = 600 - ped * 4; o.Eds4_pct = 40;
+  o.Pedal1_deg = ped; o.Pedal2_deg = ped / 2; o.Throttle1_deg = ped * 0.9; o.Throttle2_deg = 90 - ped * 0.9; o.IdleAdapt_pct = 1.2; o.IdleAdaptDrive_pct = 2.1; o.IdleAdaptAC_pct = 3.0; o.EFanReq_pct = 30 + warm * 40; o.LsHeatUp1_pct = o.LsHeatUp2_pct = 45; o.LsHeatDn1_pct = o.LsHeatDn2_pct = 60; o.CatDiag1 = 0.3; o.CatDiag2 = 0.28; o.LshUp1 = o.LshUp2 = o.LshDn1 = o.LshDn2 = 1; o.ThrAdMech1_V = 0.41; o.ThrAdMech2_V = 4.58; o.ThrAdEl1_V = 0.52; o.ThrAdEl2_V = 4.47;
   o.Coolant_C = 30 + warm * 62 + Math.sin(s / 7) * 1.5; o.Oil_C = 25 + warm * 70; o.ATF_C = 30 + warm * 55; o.RadOut_C = 10 + warm * 40; o.IAT_C = 20 + warm * 15;
   o.Ubatt_V = 13.8 + Math.sin(s) * 0.1; o.Baro_hPa = 998; o.IdleInt_pct = 0.5 + Math.sin(s / 3) * 2;
   o.Knock2_V = 0.2 + ped / 100 * 0.6; o.Knock5_V = 0.25 + ped / 100 * 0.5;
