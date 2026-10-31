@@ -297,6 +297,7 @@ const BLOCK_IDLEAD = ['0B92', [['IdleAdapt_pct',3,7,0.001526,0],['IdleAdaptDrive
 const BLOCK_CAT = ['0B99', [['CatDiag1',3,5,0.0039,0],['CatDiag2',5,5,0.0039,0],['LsAfr1',7,5,0.0039,0],['LsAfr2',9,5,0.0039,0]]];
 // EGS GS20 (адрес 0x32, команда 0B03): обороты турбины/выхода, ATF, колёса, передача, селектор, блокировка ГДТ
 const EGS = 0x32;
+const EGS_VERIFIED = false; // селектор/передача/обороты из GS20 ещё не выверены по сырому логу — не показывать
 const BLOCK_EGS = ['0B03', [['EgsRPM',3,2,32,0],['Turbine_rpm',4,2,32,0],['Output_rpm',5,2,32,0],['EgsThrottle_pct',6,2,0.3957,0],['AtfAging_pct',7,2,0.3922,0],['EgsEngT_C',8,2,1,-40],['ATF_C',9,2,1,-40],['EgsUbat_V',10,2,0.1,0],
   ['WheelFL_kmh',11,2,2,0],['WheelFR_kmh',12,2,2,0],['WheelRL_kmh',13,2,2,0],['WheelRR_kmh',14,2,2,0],['Eds1_mA',15,2,4.8828,0],['Eds4_pct',18,2,0.3922,0]], EGS];
 const BITS_EGS = [['MV1',20,0x80,0x80],['MV2',20,0x40,0x40],['MV3',20,0x20,0x20],['TccLock',20,0x04,0x04],['MVSL',20,0x02,0x02],['EgsBrake',20,0x01,0x01],
@@ -450,7 +451,7 @@ function derived(o) {
   if (o.RPM != null && o.Inj_ms != null) { o.Fuel_lh = fuelLh(o.RPM, o.Inj_ms, injFlow()); o.Fuel_l100 = o.Speed_kmh > 3 ? o.Fuel_lh / o.Speed_kmh * 100 : null; }
   o.AxleDiff_kmh = null; if (o.WheelFL_kmh != null && o.WheelRR_kmh != null) o.AxleDiff_kmh = (o.WheelFL_kmh + o.WheelFR_kmh) / 2 - (o.WheelRL_kmh + o.WheelRR_kmh) / 2;
   if (o.SelCode == null) { o.GearSel = o.Gear = o.TccSlip_rpm = null; }
-  if (o.SelCode != null) { const sc = o.SelCode >> 4; o.GearSel = SEL_TXT[sc] ?? '?'; o.Gear = o.GearCode ? (o.GearCode >> 5) : null; o.TccSlip_rpm = o.EgsRPM != null && o.Turbine_rpm != null ? o.EgsRPM - o.Turbine_rpm : null; }
+  if (o.SelCode != null) { const sc = o.SelCode >> 4; o.GearSel = EGS_VERIFIED ? (SEL_TXT[sc] ?? '?') : null; o.Gear = EGS_VERIFIED && o.GearCode ? (o.GearCode >> 5) : null; o.TccSlip_rpm = o.EgsRPM != null && o.Turbine_rpm != null ? o.EgsRPM - o.Turbine_rpm : null; }
   if (o.VanosInSet_deg != null) o.VanosInErr = o.VanosIn_deg - o.VanosInSet_deg;
   if (o.VanosExSet_deg != null) o.VanosExErr = o.VanosEx_deg - o.VanosExSet_deg;
   dfco(o);
@@ -546,7 +547,7 @@ function render() {
   $('vDisa').textContent = cur.DISA == null ? '—' : (cur.DISA ? 'DISA вкл' : 'DISA выкл') + ' / ' + (cur.ExhFlap ? 'открыта' : 'закрыта');
   $('vCruise').textContent = cur.CruiseIdle == null ? '—' : (cur.CruiseIdle ? '—' : 'круиз') + ' / ' + (cur.SwBrake ? 'тормоз' : '—');
   if (cur.SelCode != null) {
-    $('vGear').textContent = (cur.GearSel ?? '—') + (cur.Gear ? ' · ' + cur.Gear + '-я' : '') + (cur.Steptronic ? ' · M' : '');
+    $('vGear').textContent = EGS_VERIFIED ? (cur.GearSel ?? '—') + (cur.Gear ? ' · ' + cur.Gear + '-я' : '') + (cur.Steptronic ? ' · M' : '') : 'не выверено';
     $('vProg').textContent = PROG_TXT[cur.ProgCode >> 4] ?? cur.ProgCode;
     $('vTcc').textContent = cur.TccLock ? 'заблокирован' : 'открыт'; $('tTcc').className = 'tile' + (cur.TccLock ? ' ok' : '');
     $('vShift').textContent = cur.Shifting ? (cur.Upshift ? 'вверх' : cur.Downshift ? 'вниз' : 'идёт') : cur.GearEngage ? 'включение' : '—';
@@ -707,7 +708,7 @@ function drawGauges(now) {
     if (on) { g.fillStyle = cs.acc; g.beginPath(); g.roundRect(gx - R * 0.14, y - gh / items.length * 0.42, R * 0.28, gh / items.length * 0.84, 6); g.fill(); }
     g.fillStyle = on ? '#1a1000' : cs.fg2; g.globalAlpha = on ? 1 : .6; g.fillText(it, gx, y); g.globalAlpha = 1;
   });
-  if (sel == null) { g.fillStyle = cs.fg2; g.font = '11px system-ui'; g.fillText('нет данных EGS', gx, gy0 + gh + 12); }
+  if (sel == null) { g.fillStyle = cs.fg2; g.font = '11px system-ui'; g.fillText(cur.SelCode != null ? 'EGS: раскладка не выверена' : 'нет данных EGS', gx, gy0 + gh + 12); }
   // строка снизу/сверху: расход, лямбда, напряжение, отсечка, запись
   g.fillStyle = cs.fg2; g.font = '14px system-ui'; g.textAlign = 'left';
   const line = [`λ ${fmt(cur.Lambda1, 2)}`, `${fmt(cur.Fuel_lh, 1)} л/ч`, cur.Fuel_l100 != null ? `${fmt(cur.Fuel_l100, 1)} л/100` : null, `${fmt(cur.Ubatt_V, 1)} В`, cur.Dfco ? `отсечка ${cur.Dfco}` : null].filter(Boolean).join('   ·   ');
