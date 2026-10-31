@@ -238,7 +238,7 @@ body.fs{padding:6px}body.fs .bar,body.fs .msg{display:none}body.fs #gauges{heigh
   <div class="tile"><div class="k">Обороты ХХ (512–1792)</div><div class="bar" style="margin:4px 0 0"><input id="tIdle" type="number" value="900" min="512" max="1792" step="32" style="width:90px"><button data-pwm="2290" data-src="tIdle" data-k="0.03125">Задать</button></div></div>
   <div class="tile"><div class="k">Клапан адсорбера, %</div><div class="bar" style="margin:4px 0 0"><input id="tTev" type="number" value="50" min="0" max="99" style="width:80px"><button data-pwm="22BB" data-src="tTev" data-k="2.56">Задать</button></div></div>
   <div class="tile"><div class="k">Отключить форсунку (№)</div><div class="bar" style="margin:4px 0 0"><input id="tInj" type="number" value="1" min="1" max="6" style="width:70px"><button id="tInjOff">Выкл</button></div></div>
-  <div class="tile wide"><div class="k">Ошибки блоков</div><div class="bar" style="margin:4px 0 0"><button id="tFsRead">Прочитать</button><label><input type="checkbox" id="fsAll"> все блоки</label><select id="fsClearAddr" style="max-width:150px"><option value="12">DME</option><option value="32">АКПП</option><option value="56">DSC</option><option value="5B">IHKA</option><option value="80">Приборка</option><option value="D0">LSZ</option><option value="A4">MRS</option></select><button id="tFsClear">Стереть</button></div></div>
+  <div class="tile wide"><div class="k">Ошибки блоков</div><div class="bar" style="margin:4px 0 0"><select id="fsAddr" style="max-width:170px"><option value="all">Все блоки</option><option value="12">DME</option><option value="32">АКПП</option><option value="56">DSC</option><option value="5B">Климат IHKA</option><option value="80">Приборка</option><option value="D0">Свет LSZ</option><option value="A4">Подушки MRS</option><option value="44">EWS</option><option value="00">Кузов GM5</option><option value="68">Радио</option><option value="50">MFL</option><option value="60">PDC</option></select><button id="tFsRead">Прочитать</button><button id="tFsClear">Стереть</button></div></div>
   <div class="tile"><div class="k">Завершить тесты</div><div class="bar" style="margin:4px 0 0"><button id="tEnd" class="primary">Вернуть управление DME</button></div></div>
 </div>
 <pre class="rep" id="testOut" hidden></pre>
@@ -1027,11 +1027,11 @@ $('tFsRead').onclick = async () => {
   if (!port || demo) { $('testOut').hidden = false; $('testOut').textContent = 'Нужен подключённый кабель (не демо).'; return; }
   $('testOut').hidden = false; $('testOut').textContent = 'Читаю…';
   let txt = '';
-  const list = $('fsAll').checked ? ECUS : ECUS.slice(0, 2);
+  const v = $('fsAddr').value; const list = v === 'all' ? ECUS : ECUS.filter(e => e[0] === parseInt(v, 16));
   for (const [a, n] of list) { txt += await readFaults(a, n); $('testOut').textContent = txt; }
   $('testOut').textContent = txt + '\nТексты есть для DME и АКПП; остальные — сырые коды, для расшифровки нужны их prg-файлы. Скопируйте и пришлите.';
 };
-$('tFsClear').onclick = () => { const a = parseInt($('fsClearAddr').value, 16); const n = (ECUS.find(e => e[0] === a) || [0, '?'])[1]; if (confirm('Стереть память ошибок: ' + n + '?')) sendTest('05', 'Стереть ошибки ' + n, a); };
+$('tFsClear').onclick = () => { const v = $('fsAddr').value; if (v === 'all') { $('testOut').hidden = false; $('testOut').textContent = 'Выберите конкретный блок — все разом не стираю.'; return; } const a = parseInt(v, 16); const n = (ECUS.find(e => e[0] === a) || [0, '?'])[1]; if (confirm('Стереть память ошибок: ' + n + '?')) sendTest('05', 'Стереть ошибки ' + n, a); };
 
 // ===== DS2-консоль: сырые ответы любого блока, подсветка изменившихся байт
 let dsPrev = null;
