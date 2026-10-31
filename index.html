@@ -53,49 +53,45 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--fg2)
 canvas{width:100%;height:120px;display:block}
 .legend{display:flex;gap:14px;font-size:13px;color:var(--fg2)}
 .legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
-.msg{font-size:14px;color:var(--fg2);margin:8px 2px;min-height:1.2em}
+.msg{font-size:14px;color:var(--fg2);margin:8px 2px}
 .msg.err{color:var(--bad)}
 details{margin-top:14px;color:var(--fg2);font-size:14px}
 details label{display:inline-flex;gap:6px;align-items:center;margin:6px 14px 6px 0}
 details input[type=checkbox]{width:22px;height:22px;min-height:0}
-.tabs{display:flex;gap:6px;margin:0 0 10px;border-bottom:1px solid var(--line);padding-bottom:8px}
-.tabs button{min-height:40px;padding:6px 16px;border-radius:10px;background:transparent;color:var(--fg2)}
-.tabs button.on{background:var(--panel);color:var(--acc);border-color:var(--acc)}
-.tabs #btnFs,.tabs #btnDemo2{margin-left:auto;font-size:18px}
-.tabs #btnDemo2{margin-left:0;font-size:14px}
+#topbar{gap:6px;margin-bottom:8px}
+#topbar h1{margin-right:4px}
+.tabs{display:flex;gap:4px;margin:0 auto 0 6px}
+.tabs button{min-height:44px;padding:6px 16px;border-radius:10px;background:transparent;color:var(--fg2)}
+.tabs button.on{background:var(--acc);color:#1a1000;border-color:var(--acc);font-weight:700}
+button.ico{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;min-height:44px;color:var(--fg2)}
+button.ico svg{width:22px;height:22px;fill:currentColor}
+button.ico span{font-size:13px;font-weight:600}
+button.ico.on{color:#1a1000;background:var(--ok);border-color:var(--ok)}
+button.ico.err{color:#fff;background:var(--bad);border-color:var(--bad)}
+button.ico.rec{color:#fff;background:var(--bad);border-color:var(--bad)}
+button.ico.rec svg{animation:bl 1s infinite}
+.msg[hidden]{display:none}
 #gauges{width:100%;height:60vh;min-height:300px;display:block;touch-action:none}
-body.fs{padding:6px}body.fs .bar,body.fs .msg,body.fs .tabs{display:none}body.fs #gauges{height:calc(100vh - 12px)}
+body.gauges{overflow:hidden;height:100vh}
+body.fs{padding:6px}body.fs .bar,body.fs .msg{display:none}body.fs #gauges{height:calc(100vh - 12px)}
 @media (max-width:420px){.tile.wide{grid-column:span 1}.tile .v{font-size:26px}}
 </style>
 </head>
 <body>
-<div class="bar">
-  <h1>M54 Live</h1>
-  <button id="btnConnect" class="primary">Подключить кабель</button>
-  <select id="runName" aria-label="Тип заезда">
-    <option value="city">Город</option>
-    <option value="wot">Полный газ (2-я, 1500→отсечка)</option>
-    <option value="coast">Накат (педаль 0, с 3000 об)</option>
-    <option value="idle">Холостой</option>
-    <option value="hwy">Трасса</option>
-  </select>
-  <button id="btnRec" disabled>Начать лог</button>
+<div class="bar" id="topbar">
+  <h1>M54</h1>
+  <button id="btnConnect" class="ico" title="Подключить кабель"><svg viewBox="0 0 24 24"><path d="M7 7V3h2v4h6V3h2v4h1a1 1 0 0 1 1 1v3a6 6 0 0 1-5 5.9V21h-4v-4.1A6 6 0 0 1 5 11V8a1 1 0 0 1 1-1z"/></svg><span id="stLink">—</span></button>
+  <button id="btnRec" class="ico" disabled title="Начать лог"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></svg><span id="stRec">лог</span></button>
+  <nav class="tabs" id="tabs">
+    <button data-tab="all" class="on">Показания</button>
+    <button data-tab="gauges">Приборы</button>
+    <button data-tab="log">Разбор</button>
+  </nav>
+  <button id="btnDemo2" class="ico" title="Тестовые данные без машины"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>демо</span></button>
+  <button id="btnFs" class="ico" title="На весь экран"><svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 0h2v6h-6v-2h4z"/></svg></button>
   <button id="btnSave" hidden>Сохранить лог</button>
-  <div class="status">
-    <span><i class="dot" id="dotLink"></i><span id="stLink">не подключено</span></span>
-    <span id="stRate">— Гц</span>
-    <span id="stRec"></span>
-  </div>
 </div>
-<div class="msg" id="msg">Подключите K+DCAN к магнитоле и OBD, включите зажигание и нажмите «Подключить кабель».</div>
-
-<nav class="tabs" id="tabs">
-  <button data-tab="all" class="on">Показания</button>
-  <button data-tab="gauges">Приборы</button>
-  <button data-tab="log">Разбор</button>
-  <button id="btnDemo2" title="Тестовые данные без машины">Демо</button>
-  <button id="btnFs" title="На весь экран">⛶</button>
-</nav>
+<div class="msg" id="msg" hidden></div>
 
 <section id="tab-gauges" hidden>
   <canvas id="gauges"></canvas>
@@ -331,7 +327,7 @@ const EXTRA_COLS = ['Gear', 'GearSel', 'TccSlip_rpm', 'AxleDiff_kmh'];
 const COLUMNS = [...BLOCK_MAIN[1], ...BLOCK_VANOS[1], ...BLOCK_ADAPT[1], ...BLOCK_RON[1], ...BLOCK_ROUGH[1], ...BLOCK_TQI[1], ...BLOCK_IDLEAD[1], ...BLOCK_CAT[1], ...BLOCK_EGS[1]].map(c => c[0]).concat(BITS_DIGITAL.map(b => b[0])).concat(BITS_EGS.map(b => b[0])).concat(EXTRA_COLS);
 
 const $ = id => document.getElementById(id);
-const msg = (t, err) => { $('msg').textContent = t; $('msg').className = 'msg' + (err ? ' err' : ''); };
+const msg = (t, err) => { $('msg').textContent = t; $('msg').className = 'msg' + (err ? ' err' : ''); $('msg').hidden = !t; };
 
 // ===== FTDI через WebUSB
 class Ftdi {
@@ -433,7 +429,7 @@ async function readBits(port, cmd, bits, out, addr = DME) {
 // ===== состояние
 let port = null, running = false, demo = false, egsErr = 0, egsDead = false;
 const cur = {}; let rec = null; const hist = [];
-let samples = 0, lastRateT = performance.now(), errs = 0;
+let samples = 0, lastRateT = performance.now(), errs = 0, rateHz = 0;
 
 // ===== расчёт топлива: 6 цилиндров, впрыск раз в два оборота, мёртвое время ~1 мс
 const INJ_DEAD_MS = 1.0;
@@ -502,7 +498,7 @@ async function pollLoop() {
       }
       derived(cur); errs = 0; samples++;
       setLink('on', demo ? 'демо' : 'DME отвечает');
-      if (rec) { rec.rows.push([((t - rec.t0) / 1000).toFixed(3), ...COLUMNS.map(c => cur[c] == null ? '' : typeof cur[c] === 'number' ? +cur[c].toFixed(4) : String(cur[c]))]); if (rec.name === 'wot' || rec.name === 'coast') testFrame(cur, rec.name); }
+      if (rec) { rec.rows.push([((t - rec.t0) / 1000).toFixed(3), ...COLUMNS.map(c => cur[c] == null ? '' : typeof cur[c] === 'number' ? +cur[c].toFixed(4) : String(cur[c]))]); }
       if (rec && t >= nextAuto) { nextAuto = t + 10000; autosave(rec); }
       hist.push([t, cur.VanosIn_deg, cur.VanosInSet_deg]); while (hist.length && t - hist[0][0] > 30000) hist.shift();
     } catch (e) {
@@ -519,7 +515,7 @@ function fmt(v, d) { return v == null || isNaN(v) ? '—' : v.toLocaleString('ru
 let tab = 'all';
 function render() {
   const now = performance.now();
-  if (tab === 'gauges') { drawGauges(now); if (rec) $('stRec').textContent = `● запись ${Math.round((now - rec.t0) / 1000)} с`; requestAnimationFrame(render); return; }
+  if (tab === 'gauges') { drawGauges(now); if (rec) $('stRec').textContent = `${Math.round((now - rec.t0) / 1000)} с`; requestAnimationFrame(render); return; }
   if (tab !== 'all') { requestAnimationFrame(render); return; }
   for (const el of els) el.textContent = fmt(cur[el.dataset.k], +el.dataset.d);
   const lagIn = Math.abs(cur.VanosInErr ?? 0);
@@ -550,8 +546,8 @@ function render() {
   $('vDfco').textContent = cur.Dfco ?? '—';
   $('sDfco').textContent = cur.Dfco == null ? 'педаль 0, >1500 об' : `накат ${cur.DfcoT.toFixed(1)} с · впрыск ${fmt(cur.Inj_ms, 2)} мс`;
   $('tDfco').className = 'tile' + (cur.Dfco === 'да' ? ' ok' : cur.Dfco === 'НЕТ' ? ' bad' : '');
-  if (now - lastRateT > 1000) { $('stRate').textContent = (samples * 1000 / (now - lastRateT)).toFixed(1) + ' Гц'; samples = 0; lastRateT = now; }
-  if (rec) $('stRec').textContent = `● запись ${Math.round((now - rec.t0) / 1000)} с · ${rec.rows.length} строк`;
+  if (now - lastRateT > 1000) { rateHz = samples * 1000 / (now - lastRateT); samples = 0; lastRateT = now; }
+  if (rec) $('stRec').textContent = `${Math.round((now - rec.t0) / 1000)} с`;
   drawSpark(now);
   requestAnimationFrame(render);
 }
@@ -580,6 +576,7 @@ function showTab(t) {
   tab = t;
   for (const b of $('tabs').querySelectorAll('[data-tab]')) b.classList.toggle('on', b.dataset.tab === t);
   for (const id of ['all', 'gauges', 'log']) $('tab-' + id).hidden = id !== t;
+  document.body.classList.toggle('gauges', t === 'gauges'); if (t === 'gauges') scrollTo(0, 0);
   try { localStorage.setItem('m54_tab', t); } catch (e) {}
 }
 $('tabs').onclick = e => { const b = e.target.closest('[data-tab]'); if (b) showTab(b.dataset.tab); };
@@ -641,7 +638,7 @@ function arcVal(g, x, y, r, lo, hi, v, col) {
   if (v == null) return; g.strokeStyle = col; g.lineWidth = 8; g.lineCap = 'round'; g.beginPath(); g.arc(x, y, r, A0, arcPos(lo, hi, v)); g.stroke();
 }
 function drawGauges(now) {
-  const cv = $('gauges'); const want = Math.max(300, innerHeight - cv.getBoundingClientRect().top - 8); if (Math.abs(cv.clientHeight - want) > 2) cv.style.height = want + 'px';
+  const cv = $('gauges'); const want = Math.max(240, innerHeight - cv.offsetTop - 6); if (Math.abs(cv.clientHeight - want) > 2) cv.style.height = want + 'px';
   const w = cv.clientWidth, h = cv.clientHeight, dpr = devicePixelRatio || 1;
   if (!w || !h) return;
   const st = getComputedStyle(document.documentElement);
@@ -677,7 +674,8 @@ function drawGauges(now) {
   g.fillStyle = cs.fg; g.font = `600 ${Math.round(R * 0.15)}px system-ui`;
   g.fillText(cur.Fuel_l100 != null ? fmt(Math.min(cur.Fuel_l100, 99.9), 1) + ' л/100' : fmt(cur.Fuel_lh, 1) + ' л/ч', rx, cy - R * 0.12);
   g.fillStyle = cs.fg2; g.font = `${Math.round(R * 0.11)}px system-ui`;
-  if (cur.Turbine_rpm != null) { g.fillText(`ГДТ ${cur.TccLock ? 'закрыт' : 'открыт'} · скольж. ${fmt(cur.TccSlip_rpm, 0)}`, lx, cy - R * 0.14); g.fillText(`ATF ${fmt(cur.ATF_C, 0)}° · ${PROG_TXT[cur.ProgCode >> 4] ?? ''}`, lx, cy + R * 0.72); }
+  if (cur.Turbine_rpm != null) { g.fillText(`ГДТ ${cur.TccLock ? 'закрыт' : 'открыт'} · скольж. ${fmt(cur.TccSlip_rpm, 0)}`, lx, cy - R * 0.14); g.fillText(`ATF ${fmt(cur.ATF_C, 0)}° · ${PROG_TXT[cur.ProgCode >> 4] ?? ''}`, rx, cy + R * 0.72); }
+  g.fillStyle = cs.fg; g.font = `600 ${Math.round(R * 0.14)}px system-ui`; g.fillText(fmt(cur.Fuel_lh, 1) + ' л/ч', lx, cy + R * 0.74);
   const tcol = (v, warn, bad) => v == null ? cs.fg2 : v >= bad ? cs.bad : v >= warn ? cs.warn : cs.ok;
   arcVal(g, xs[0], y2, r2, 40, 130, cool, tcol(cool, 105, 115));
   arcVal(g, xs[1], y2, r2, 40, 140, atf, tcol(atf, 110, 125));
@@ -699,13 +697,13 @@ function drawGauges(now) {
   // строка снизу/сверху: расход, лямбда, напряжение, отсечка, запись
   g.fillStyle = cs.fg2; g.font = '14px system-ui'; g.textAlign = 'left';
   const line = [`λ ${fmt(cur.Lambda1, 2)}`, `${fmt(cur.Fuel_lh, 1)} л/ч`, cur.Fuel_l100 != null ? `${fmt(cur.Fuel_l100, 1)} л/100` : null, `${fmt(cur.Ubatt_V, 1)} В`, cur.Dfco ? `отсечка ${cur.Dfco}` : null].filter(Boolean).join('   ·   ');
-  g.fillText(line, 12, 16);
+  g.fillText(line + (running ? `   ·   ${rateHz.toFixed(1)} Гц` : ''), 12, 16);
   if (rec) { g.fillStyle = cs.bad; g.textAlign = 'right'; g.fillText(`● ЗАПИСЬ ${Math.round((now - rec.t0) / 1000)} с`, w - 12, 16); }
   else if (!running) { g.fillStyle = cs.fg2; g.textAlign = 'right'; g.fillText('нет связи', w - 12, 16); }
 }
 
-function setLink(state, text) { $('dotLink').className = 'dot ' + state; $('stLink').textContent = text; }
-function onLinkLost(e) { running = false; setLink('err', 'кабель отключён'); msg('Связь с кабелем потеряна: ' + (e && e.message || ''), true); $('btnConnect').disabled = false; $('btnConnect').textContent = 'Подключить кабель'; }
+function setLink(state, text) { $('btnConnect').className = 'ico' + (state === 'on' ? ' on' : state === 'err' ? ' err' : ''); $('stLink').textContent = state === 'on' ? (demo ? 'демо' : 'DME') : state === 'err' ? 'ошибка' : '—'; $('btnConnect').title = text; }
+function onLinkLost(e) { running = false; setLink('err', 'кабель отключён'); msg('Связь с кабелем потеряна: ' + (e && e.message || ''), true); $('btnConnect').disabled = false; }
 
 // ===== кнопки
 $('btnConnect').onclick = async () => {
@@ -717,11 +715,11 @@ $('btnConnect').onclick = async () => {
     port = new Ftdi(dev);
     await port.open($('optDtr').checked, $('optRts').checked);
     demo = false; running = true; egsErr = 0; egsDead = false; $('btnConnect').disabled = true; $('btnRec').disabled = false;
-    setLink('on', 'кабель подключён'); msg('Кабель подключён: ' + (dev.productName || 'USB') + '. Опрашиваю DME…');
+    setLink('on', 'кабель подключён'); msg('');
     pollLoop();
   } catch (e) { msg('Не удалось подключить: ' + e.message, true); }
 };
-function startDemo() { if (running) { if (demo) { running = false; demo = false; setLink('', 'демо остановлено'); $('btnRec').disabled = true; } return; } demo = true; running = true; demoT0 = performance.now(); $('btnRec').disabled = false; msg('Демо-режим: данные выдуманные, чтобы проверить экран без машины. Нажмите «Демо» ещё раз, чтобы остановить.'); pollLoop(); }
+function startDemo() { if (running) { if (demo) { running = false; demo = false; setLink('', 'демо остановлено'); $('btnRec').disabled = true; $('btnDemo2').classList.remove('on'); } return; } demo = true; running = true; demoT0 = performance.now(); $('btnRec').disabled = false; msg(''); $('btnDemo2').classList.add('on'); pollLoop(); }
 $('btnDemo').onclick = startDemo; $('btnDemo2').onclick = startDemo;
 let wake = null;
 async function keepAwake(on) { try { if (on && !wake && navigator.wakeLock) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => wake = null); } else if (!on && wake) { await wake.release(); wake = null; } } catch (e) {} }
@@ -729,12 +727,11 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 $('btnRec').onclick = () => {
   if (!rec) {
     keepAwake(true);
-    rec = { t0: performance.now(), name: ($('runName').value || 'run').replace(/[^\w-]+/g, '_'), started: new Date(), rows: [], raw: [] };
-    test.wot = test.coast = null; $('testBox').className = 'test' + (rec.name === 'wot' || rec.name === 'coast' ? ' on' : ''); $('testBox').textContent = '';
-    $('btnRec').textContent = 'Стоп'; $('btnRec').className = 'rec'; $('btnSave').hidden = true; $('dotLink').classList.add('rec');
+    rec = { t0: performance.now(), name: 'log', started: new Date(), rows: [], raw: [] };
+    $('btnRec').className = 'ico rec'; $('btnRec').title = 'Стоп'; $('btnSave').hidden = true;
   } else {
     const r = rec; rec = null; window.lastLog = r; keepAwake(false);
-    $('btnRec').textContent = 'Начать лог'; $('btnRec').className = ''; $('stRec').textContent = `лог готов: ${r.rows.length} строк`;
+    $('btnRec').className = 'ico'; $('btnRec').title = 'Начать лог'; $('stRec').textContent = `${r.rows.length} строк`;
     $('btnSave').hidden = false; saveBackup(r);
     if (r.raw.length) saveRaw(r);
     analyze(r.rows.map(x => x.map(Number)), fileName(r));
