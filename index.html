@@ -172,18 +172,12 @@ body.fs{padding:6px}body.fs .bar,body.fs .msg,body.fs .tabs{display:none}body.fs
 
 <details>
   <summary>Настройки</summary>
-  <label>Форсунки
-    <select id="optInj">
-      <option value="237">237 см³ — родные 2.5 (1427240)</option>
-      <option value="254">254 см³ — от 3.0 (1439800)</option>
-      <option value="214">214 см³ — N52 (7531634)</option>
-    </select>
-  </label>
+  <select id="optInj" hidden><option value="237" selected>237</option></select>
   <label><input type="checkbox" id="optDtr"> DTR</label>
   <label><input type="checkbox" id="optRts"> RTS</label>
   <label><input type="checkbox" id="optVanos" checked> Опрашивать цели VANOS</label>
   <label><button id="btnDemo">Демо без машины</button></label>
-  <p>Расход «по впрыску» считается из времени открытия форсунок (минус ~1 мс мёртвого времени) и их производительности при 3.5 бар — выберите те, что реально стоят. «По ДМРВ» — из воздуха при лямбде 1, на сбросе газа и при обогащении врёт.</p>
+  <p>Расход «по впрыску» считается из времени открытия форсунок (минус ~1 мс мёртвого времени) при 237 см³/мин. «По ДМРВ» — из воздуха при лямбде 1, на сбросе газа и при обогащении врёт.</p>
   <p>DTR/RTS переключают режим у некоторых кабелей K+DCAN. Если DME не отвечает — попробуйте включить DTR и переподключиться.</p>
   <h2>Автосохранение в GitHub</h2>
   <p>Чтобы не набирать токен на магнитоле: откройте на ней ссылку <code>…/m54-live/#gh=Greemq/M54-logs,github_pat_…</code> — настройки сохранятся и исчезнут из адреса. Ссылку удобно собрать на телефоне и отправить в Chrome магнитолы («Отправить на устройства» / «Недавние вкладки»).</p>
@@ -636,7 +630,7 @@ function analyze(rows, name, head) {
     if (g(r, 'Speed_kmh') < 1) { idleT += dt; idleFuel += f; }
   }
   const cool0 = g(rows[0], 'Coolant_C'), cool1 = g(rows[rows.length - 1], 'Coolant_C');
-  L(`<span class="h">${esc(name)}</span> — ${rows.length} строк, ${T.toFixed(0)} с, форсунки ${flow} см³`);
+  L(`<span class="h">${esc(name)}</span> — ${rows.length} строк, ${T.toFixed(0)} с`);
   L(`Мотор ${fmt(cool0, 0)}→${fmt(cool1, 0)} °C · путь ${dist.toFixed(2)} км · средняя ${fmt(T ? dist / T * 3600 : NaN, 1)} км/ч · стоим ${fmt(T ? idleT / T * 100 : NaN, 0)}% времени`);
   if (dist > 0.3) L(`Расход по впрыску: <b>${(fuel / dist * 100).toFixed(1)} л/100</b> (${fuel.toFixed(2)} л), из них на стоянке ${(idleFuel / Math.max(fuel, 1e-6) * 100).toFixed(0)}% · на ХХ ${fmt(idleT ? idleFuel / idleT * 3600 : NaN, 2)} л/ч`);
   else L(`Расход на месте: ${fmt(idleT ? idleFuel / idleT * 3600 : NaN, 2)} л/ч`);
