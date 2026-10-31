@@ -321,10 +321,10 @@ const BITS_DIGITAL = [['LoadState',0,0x03,null],['SwKO',0,0x80,0x80],['SwAC',0,0
   ['ClosedLoop2',1,0x80,0x80],['ClosedLoop1',1,0x40,0x40],['DfcoFlag',1,0x20,0x20],['Overrun',1,0x10,0x10],['Starting',1,0x08,0x08],['GearIn',1,0x04,0x04],['EgsInt',1,0x02,0x02],['CanOk',1,0x01,0x01],
   ['SLV',2,0x80,0x80],['SLP',2,0x40,0x40],['SSP',2,0x20,0x20],['RLV',2,0x10,0x10],['ExhFlap',2,0x08,0x08],['DMTL',2,0x04,0x04],['AcRelay',2,0x02,0x02],['FuelPump',2,0x01,0x01],
   ['CatHeat',3,0x80,0x80],['DmtlValve',3,0x40,0x40],['EmlLamp',3,0x20,0x20],['MIL',3,0x10,0x10],['Purge',3,0x08,0x08],['DISA',3,0x04,0x04],['AscInt',3,0x02,0x02],['TmotStat',3,0x01,0x01],
-  ['CruiseActive',4,0x80,0x80],['CruiseDecel',4,0x40,0x40],['CruiseResume',4,0x20,0x20],['CruiseAccel',4,0x10,0x10],['CruiseTipDown',4,0x08,0x08],['CruiseTipUp',4,0x04,0x04],['CruiseOff',4,0x02,0x02],['CruiseHardOff',4,0x01,0x01],
+  ['CruiseIdle',4,0x80,0x80],['CruiseDecel',4,0x40,0x40],['CruiseResume',4,0x20,0x20],['CruiseAccel',4,0x10,0x10],['CruiseTipDown',4,0x08,0x08],['CruiseTipUp',4,0x04,0x04],['CruiseOff',4,0x02,0x02],['CruiseHardOff',4,0x01,0x01],
   ['VanosActive',5,0x80,0x80],['VanosReady',5,0x40,0x40],['VanosPassive',5,0x20,0x20],['CrankAdaptOk',5,0x10,0x10],['LshDn2',5,0x08,0x08],['LshDn1',5,0x04,0x04],['LshUp2',5,0x02,0x02],['LshUp1',5,0x01,0x01]];
 const EXTRA_COLS = ['Gear', 'GearSel', 'TccSlip_rpm', 'AxleDiff_kmh'];
-const COLUMNS = [...BLOCK_MAIN[1], ...BLOCK_VANOS[1], ...BLOCK_ADAPT[1], ...BLOCK_RON[1], ...BLOCK_ROUGH[1], ...BLOCK_TQI[1], ...BLOCK_IDLEAD[1], ...BLOCK_CAT[1], ...BLOCK_EGS[1]].map(c => c[0]).concat(BITS_DIGITAL.map(b => b[0])).concat(BITS_EGS.map(b => b[0])).concat(EXTRA_COLS);
+const COLUMNS = [...BLOCK_MAIN[1], ...BLOCK_VANOS[1], ...BLOCK_ADAPT[1], ...BLOCK_RON[1], ...BLOCK_ROUGH[1], ...BLOCK_TQI[1], ...BLOCK_IDLEAD[1], ...BLOCK_CAT[1], ...BLOCK_OVERREV[1], ...BLOCK_EGS[1]].map(c => c[0]).concat(BITS_DIGITAL.map(b => b[0])).concat(BITS_EGS.map(b => b[0])).concat(EXTRA_COLS);
 
 const $ = id => document.getElementById(id);
 const msg = (t, err) => { $('msg').textContent = t; $('msg').className = 'msg' + (err ? ' err' : ''); $('msg').hidden = !t; };
@@ -427,7 +427,7 @@ async function readBits(port, cmd, bits, out, addr = DME) {
 }
 
 // ===== состояние
-let port = null, running = false, demo = false, egsErr = 0, egsDead = false;
+let port = null, running = false, demo = false, egsErr = 0, egsDead = false, egsRetry = 0, egsLastErr = '';
 const cur = {}; let rec = null; const hist = [];
 let samples = 0, lastRateT = performance.now(), errs = 0, rateHz = 0;
 
@@ -491,7 +491,7 @@ async function pollLoop() {
         await readBlock(port, BLOCK_MAIN, cur);
         if ($('optVanos').checked) await readBlock(port, BLOCK_VANOS, cur);
         await readBits(port, '0B04', BITS_DIGITAL, cur);
-        if ($('optEgs').checked && !egsDead) { try { await readBlock(port, BLOCK_EGS, cur); await readBits(port, '0B03', BITS_EGS, cur, EGS); egsErr = 0; } catch (e) { if (++egsErr > 5) { egsDead = true; msg('Блок АКПП (0x32) не отвечает — опрос EGS выключен до переподключения.'); } } }
+        if ($('optEgs').checked && (!egsDead || t >= egsRetry)) { try { await readBlock(port, BLOCK_EGS, cur); await readBits(port, '0B03', BITS_EGS, cur, EGS); egsErr = 0; if (egsDead) { egsDead = false; msg(''); } } catch (e) { egsLastErr = e.message; if (++egsErr >= 3 && !egsDead) { egsDead = true; msg('АКПП (0x32): ' + e.message + ' — повторю через 30 с.'); } egsRetry = t + 30000; } }
         if (t >= nextRough) { await readBlock(port, BLOCK_ROUGH, cur); nextRough = t + 1000; }
         if (t >= nextAdapt) { await readBlock(port, BLOCK_ADAPT, cur); await readBlock(port, BLOCK_RON, cur); await readBlock(port, BLOCK_TQI, cur); await readBlock(port, BLOCK_OVERREV, cur); await readBlock(port, BLOCK_IDLEAD, cur); try { await readBlock(port, BLOCK_CAT, cur); } catch (e) {} nextAdapt = t + 5000; }
         if ($('dsLive').checked && !dsBusy) await dsPoll();
@@ -529,7 +529,7 @@ function render() {
   $('vEgs').textContent = cur.EgsInt == null ? '—' : cur.EgsInt ? 'АКПП' : cur.AscInt ? 'ASC' : 'нет'; $('tEgs').className = 'tile' + (cur.EgsInt || cur.AscInt ? ' warn' : '');
   $('vAC').textContent = cur.AcRelay == null ? '—' : cur.AcRelay ? 'компрессор вкл' : cur.SwAC ? 'запрос, выкл' : 'выкл';
   $('vDisa').textContent = cur.DISA == null ? '—' : (cur.DISA ? 'DISA вкл' : 'DISA выкл') + ' / ' + (cur.ExhFlap ? 'открыта' : 'закрыта');
-  $('vCruise').textContent = cur.CruiseActive == null ? '—' : (cur.CruiseActive ? 'круиз' : '—') + ' / ' + (cur.SwBrake ? 'тормоз' : '—');
+  $('vCruise').textContent = cur.CruiseIdle == null ? '—' : (cur.CruiseIdle ? '—' : 'круиз') + ' / ' + (cur.SwBrake ? 'тормоз' : '—');
   if (cur.SelCode != null) {
     $('vGear').textContent = (cur.GearSel ?? '—') + (cur.Gear ? ' · ' + cur.Gear + '-я' : '') + (cur.Steptronic ? ' · M' : '');
     $('vProg').textContent = PROG_TXT[cur.ProgCode >> 4] ?? cur.ProgCode;
@@ -541,7 +541,7 @@ function render() {
     const a = cur.ATF_C ?? 0; $('tAtf').className = 'tile' + (a > 125 ? ' bad' : a > 110 ? ' warn' : '');
   }
   $('vLsh').textContent = cur.LshUp1 == null ? '—' : ['до1', 'до2', 'после1', 'после2'].map((n, i) => n + ([cur.LshUp1, cur.LshUp2, cur.LshDn1, cur.LshDn2][i] ? '✓' : '✗')).join(' ');
-  if (cur.LoadState != null) { const names = { SwKO: 'запрос КО', SwAC: 'AC', SwCruise: 'круиз-кнопка', SwClutch: 'сцепление', SwBrake: 'тормоз', SwBrakeTest: 'тормоз-тест', ClosedLoop1: 'λ1 замкнут', ClosedLoop2: 'λ2 замкнут', DfcoFlag: 'ОТСЕЧКА', Overrun: 'накат', Starting: 'пуск', GearIn: 'передача', EgsInt: 'срез EGS', CanOk: 'CAN', SLV: 'SLV', SLP: 'SLP', SSP: 'SSP', RLV: 'RLV', ExhFlap: 'заслонка выпуска', DMTL: 'DMTL', AcRelay: 'реле компрессора', FuelPump: 'бензонасос', CatHeat: 'прогрев кат.', DmtlValve: 'клапан DMTL', EmlLamp: 'лампа EML', MIL: 'MIL', Purge: 'адсорбер', DISA: 'DISA', AscInt: 'срез ASC', TmotStat: 'Tmot', CruiseActive: 'круиз', CruiseDecel: 'круиз−', CruiseResume: 'круиз resume', CruiseAccel: 'круиз+', CruiseOff: 'круиз выкл', VanosActive: 'VANOS активен', VanosReady: 'VANOS готов', VanosPassive: 'VANOS пассив', CrankAdaptOk: 'адапт. ДПКВ ок' };
+  if (cur.LoadState != null) { const names = { SwKO: 'запрос КО', SwAC: 'AC', SwCruise: 'круиз-кнопка', SwClutch: 'сцепление', SwBrake: 'тормоз', SwBrakeTest: 'тормоз-тест', ClosedLoop1: 'λ1 замкнут', ClosedLoop2: 'λ2 замкнут', DfcoFlag: 'ОТСЕЧКА', Overrun: 'накат', Starting: 'пуск', GearIn: 'передача', EgsInt: 'срез EGS', CanOk: 'CAN', SLV: 'SLV', SLP: 'SLP', SSP: 'SSP', RLV: 'RLV', ExhFlap: 'заслонка выпуска', DMTL: 'DMTL', AcRelay: 'реле компрессора', FuelPump: 'бензонасос', CatHeat: 'прогрев кат.', DmtlValve: 'клапан DMTL', EmlLamp: 'лампа EML', MIL: 'MIL', Purge: 'адсорбер', DISA: 'DISA', AscInt: 'срез ASC', TmotStat: 'Tmot', CruiseIdle: 'круиз в покое', CruiseDecel: 'круиз−', CruiseResume: 'круиз resume', CruiseAccel: 'круиз+', CruiseOff: 'круиз выкл', VanosActive: 'VANOS активен', VanosReady: 'VANOS готов', VanosPassive: 'VANOS пассив', CrankAdaptOk: 'адапт. ДПКВ ок' };
     $('vFlags').textContent = Object.keys(names).filter(k => cur[k]).map(k => names[k]).join(' · ') || 'нет активных'; }
   $('vDfco').textContent = cur.Dfco ?? '—';
   $('sDfco').textContent = cur.Dfco == null ? 'педаль 0, >1500 об' : `накат ${cur.DfcoT.toFixed(1)} с · впрыск ${fmt(cur.Inj_ms, 2)} мс`;
@@ -1087,7 +1087,7 @@ function demoFrame(o, t) {
   o.Knock2_V = 0.2 + ped / 100 * 0.6; o.Knock5_V = 0.25 + ped / 100 * 0.5;
   for (let i = 1; i <= 6; i++) { o['Rough' + i] = Math.abs(Math.sin(s * (1 + i / 7)) * 0.6) + (i === 3 ? 2.5 : 0.2); o['Misfire' + i] = i === 3 ? 7 : 0; }
   o.LoadState = ped === 0 ? 1 : ped > 60 ? 3 : 2; o.ClosedLoop1 = o.ClosedLoop2 = ped > 60 || coast ? 0 : 1; o.DfcoFlag = coast ? 1 : 0; o.Overrun = ped === 0 && spd > 5 ? 1 : 0;
-  o.GearIn = spd > 0 ? 1 : 0; o.EgsInt = (cyc > 6 && cyc < 18 && Math.abs((spd % 30) - 25) < 1) ? 1 : 0; o.AscInt = 0; o.AcRelay = 1; o.SwAC = 1; o.DISA = o.RPM > 3750 ? 0 : 1; o.ExhFlap = ped > 50 ? 1 : 0; o.SwBrake = cyc > 34 ? 1 : 0; o.CruiseActive = 0;
+  o.GearIn = spd > 0 ? 1 : 0; o.EgsInt = (cyc > 6 && cyc < 18 && Math.abs((spd % 30) - 25) < 1) ? 1 : 0; o.AscInt = 0; o.AcRelay = 1; o.SwAC = 1; o.DISA = o.RPM > 3750 ? 0 : 1; o.ExhFlap = ped > 50 ? 1 : 0; o.SwBrake = cyc > 34 ? 1 : 0; o.CruiseIdle = 1;
   o.TqiCount = 42; o.TqiMax_Nm = 95; o.TqiRPM = 2600; o.OverrevMax = 6320; o.OverrevCount = 1;
 }
 </script>
