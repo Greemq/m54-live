@@ -296,8 +296,9 @@ const BLOCK_IDLEAD = ['0B92', [['IdleAdapt_pct',3,7,0.001526,0],['IdleAdaptDrive
 // 0B99: диагностика катализаторов/зондов
 const BLOCK_CAT = ['0B99', [['CatDiag1',3,5,0.0039,0],['CatDiag2',5,5,0.0039,0],['LsAfr1',7,5,0.0039,0],['LsAfr2',9,5,0.0039,0]]];
 // EGS GS20 (адрес 0x32, команда 0B03): обороты турбины/выхода, ATF, колёса, передача, селектор, блокировка ГДТ
+// Номера байтов в BITS_EGS — от начала ответа (как в BLOCK_EGS), поэтому readBits для EGS вызывается с base = 0
 const EGS = 0x32;
-const EGS_VERIFIED = false; // селектор/передача/обороты из GS20 ещё не выверены по сырому логу — не показывать
+const EGS_VERIFIED = true; // передача (байт 23), статус переключения (24) и программа (25) выверены по логам 14–15.11.2026; селектор/ГДТ (байты 20–22) — та же раскладка GS20, проверить в поездке
 const BLOCK_EGS = ['0B03', [['EgsRPM',3,2,32,0],['Turbine_rpm',4,2,32,0],['Output_rpm',5,2,32,0],['EgsThrottle_pct',6,2,0.3957,0],['AtfAging_pct',7,2,0.3922,0],['EgsEngT_C',8,2,1,-40],['ATF_C',9,2,1,-40],['EgsUbat_V',10,2,0.1,0],
   ['WheelFL_kmh',11,2,2,0],['WheelFR_kmh',12,2,2,0],['WheelRL_kmh',13,2,2,0],['WheelRR_kmh',14,2,2,0],['Eds1_mA',15,2,4.8828,0],['Eds4_pct',18,2,0.3922,0]], EGS];
 const BITS_EGS = [['MV1',20,0x80,0x80],['MV2',20,0x40,0x40],['MV3',20,0x20,0x20],['TccLock',20,0x04,0x04],['MVSL',20,0x02,0x02],['EgsBrake',20,0x01,0x01],
@@ -432,9 +433,9 @@ async function readBlock(port, [cmd, fields, addr], out) {
   const r = await ds2(port, cmd, addr ?? DME);
   for (const [k, p, t, a, b] of fields) if (p + (t >= 5 ? 1 : 0) < r.length - 1) out[k] = raw(r, p, t) * a + b;
 }
-async function readBits(port, cmd, bits, out, addr = DME) {
+async function readBits(port, cmd, bits, out, addr = DME, base = 3) {
   const r = await ds2(port, cmd, addr);
-  for (const [k, byte, mask, val] of bits) { const b = r[3 + byte]; if (b == null) continue; out[k] = val == null ? (b & mask) : ((b & mask) === val ? 1 : 0); }
+  for (const [k, byte, mask, val] of bits) { const b = r[base + byte]; if (b == null) continue; out[k] = val == null ? (b & mask) : ((b & mask) === val ? 1 : 0); }
 }
 
 // ===== состояние
@@ -504,7 +505,7 @@ async function pollLoop() {
         if ($('optVanos').checked) await readBlock(port, BLOCK_VANOS, cur);
         await readBits(port, '0B04', BITS_DIGITAL, cur);
         if ($('optEgs').checked && (!egsDead || t >= egsRetry)) {
-          try { await readBlock(port, BLOCK_EGS, cur); await readBits(port, '0B03', BITS_EGS, cur, EGS); egsErr = 0; egsOk++; cur.EgsOk = 1; if (egsDead) { egsDead = false; msg(''); } }
+          try { await readBlock(port, BLOCK_EGS, cur); await readBits(port, '0B03', BITS_EGS, cur, EGS, 0); egsErr = 0; egsOk++; cur.EgsOk = 1; if (egsDead) { egsDead = false; msg(''); } }
           catch (e) { egsLastErr = e.message; egsFail++; cur.EgsOk = 0; for (const f of BLOCK_EGS[1]) cur[f[0]] = null; for (const b of BITS_EGS) cur[b[0]] = null; cur.Gear = cur.GearSel = cur.TccSlip_rpm = cur.AxleDiff_kmh = null;
             if (++egsErr >= 3 && !egsDead) { egsDead = true; msg('АКПП (0x32): ' + e.message + ' (ответов ' + egsOk + ', сбоев ' + egsFail + ') — повторю через 10 с.'); } egsRetry = t + 10000; }
         }
@@ -704,7 +705,7 @@ function drawGauges(now) {
   const sel = cur.GearSel, gear = cur.Gear;
   g.font = `600 ${Math.round(R * 0.16)}px system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle';
   items.forEach((it, i) => {
-    const drive = ['D', '4', '3', '2'].includes(sel), y = gy0 + gh * (i + 0.5) / items.length, on = (it === sel) || (drive && it === (cur.Steptronic ? 'S' : 'D')) || (drive && it === String(gear));
+    const drive = ['D', '4', '3', '2'].includes(sel), sport = cur.Steptronic || [2, 3, 8, 11].includes(cur.ProgCode >> 4), moving = gear && !['P', 'R', 'N'].includes(sel), y = gy0 + gh * (i + 0.5) / items.length, on = (it === sel) || (drive && it === (sport ? 'S' : 'D')) || (moving && it === String(gear));
     if (on) { g.fillStyle = cs.acc; g.beginPath(); g.roundRect(gx - R * 0.14, y - gh / items.length * 0.42, R * 0.28, gh / items.length * 0.84, 6); g.fill(); }
     g.fillStyle = on ? '#1a1000' : cs.fg2; g.globalAlpha = on ? 1 : .6; g.fillText(it, gx, y); g.globalAlpha = 1;
   });
