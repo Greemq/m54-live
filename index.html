@@ -298,7 +298,7 @@ const BLOCK_CAT = ['0B99', [['CatDiag1',3,5,0.0039,0],['CatDiag2',5,5,0.0039,0],
 // EGS GS20 (адрес 0x32, команда 0B03): обороты турбины/выхода, ATF, колёса, передача, селектор, блокировка ГДТ
 // Номера байтов в BITS_EGS — от начала ответа (как в BLOCK_EGS), поэтому readBits для EGS вызывается с base = 0
 const EGS = 0x32;
-const EGS_VERIFIED = true; // передача (байт 23), статус переключения (24) и программа (25) выверены по логам 14–15.11.2026; селектор/ГДТ (байты 20–22) — та же раскладка GS20, проверить в поездке
+const EGS_VERIFIED = true; // байты 20–25 выверены по сырому логу 0B03 от 15.11.2026: передача, переключение, программа, D, ручной режим, тормоз, блокировка ГДТ; коды P/R/N — по таблице GS20
 const BLOCK_EGS = ['0B03', [['EgsRPM',3,2,32,0],['Turbine_rpm',4,2,32,0],['Output_rpm',5,2,32,0],['EgsThrottle_pct',6,2,0.3957,0],['AtfAging_pct',7,2,0.3922,0],['EgsEngT_C',8,2,1,-40],['ATF_C',9,2,1,-40],['EgsUbat_V',10,2,0.1,0],
   ['WheelFL_kmh',11,2,2,0],['WheelFR_kmh',12,2,2,0],['WheelRL_kmh',13,2,2,0],['WheelRR_kmh',14,2,2,0],['Eds1_mA',15,2,4.8828,0],['Eds4_pct',18,2,0.3922,0]], EGS];
 const BITS_EGS = [['MV1',20,0x80,0x80],['MV2',20,0x40,0x40],['MV3',20,0x20,0x20],['TccLock',20,0x04,0x04],['MVSL',20,0x02,0x02],['EgsBrake',20,0x01,0x01],
@@ -433,9 +433,16 @@ async function readBlock(port, [cmd, fields, addr], out) {
   const r = await ds2(port, cmd, addr ?? DME);
   for (const [k, p, t, a, b] of fields) if (p + (t >= 5 ? 1 : 0) < r.length - 1) out[k] = raw(r, p, t) * a + b;
 }
-async function readBits(port, cmd, bits, out, addr = DME, base = 3) {
-  const r = await ds2(port, cmd, addr);
+function decodeBits(r, bits, out, base) {
   for (const [k, byte, mask, val] of bits) { const b = r[base + byte]; if (b == null) continue; out[k] = val == null ? (b & mask) : ((b & mask) === val ? 1 : 0); }
+}
+async function readBits(port, cmd, bits, out, addr = DME, base = 3) { decodeBits(await ds2(port, cmd, addr), bits, out, base); }
+// EGS: аналоговые поля и биты из ОДНОГО ответа 0B03. Второй запрос подряд (через 8 мс) GS20 часто оставляет без ответа —
+// из-за этого опрос АКПП отваливался (лог 15.11.2026 16:41: 12 попыток, все с таймаутом на втором запросе)
+async function readEgs(port, out) {
+  const [cmd, fields, addr] = BLOCK_EGS, r = await ds2(port, cmd, addr);
+  for (const [k, p, t, a, b] of fields) if (p + (t >= 5 ? 1 : 0) < r.length - 1) out[k] = raw(r, p, t) * a + b;
+  decodeBits(r, BITS_EGS, out, 0);
 }
 
 // ===== состояние
@@ -505,7 +512,7 @@ async function pollLoop() {
         if ($('optVanos').checked) await readBlock(port, BLOCK_VANOS, cur);
         await readBits(port, '0B04', BITS_DIGITAL, cur);
         if ($('optEgs').checked && (!egsDead || t >= egsRetry)) {
-          try { await readBlock(port, BLOCK_EGS, cur); await readBits(port, '0B03', BITS_EGS, cur, EGS, 0); egsErr = 0; egsOk++; cur.EgsOk = 1; if (egsDead) { egsDead = false; msg(''); } }
+          try { await readEgs(port, cur); egsErr = 0; egsOk++; cur.EgsOk = 1; if (egsDead) { egsDead = false; msg(''); } }
           catch (e) { egsLastErr = e.message; egsFail++; cur.EgsOk = 0; for (const f of BLOCK_EGS[1]) cur[f[0]] = null; for (const b of BITS_EGS) cur[b[0]] = null; cur.Gear = cur.GearSel = cur.TccSlip_rpm = cur.AxleDiff_kmh = null;
             if (++egsErr >= 3 && !egsDead) { egsDead = true; msg('АКПП (0x32): ' + e.message + ' (ответов ' + egsOk + ', сбоев ' + egsFail + ') — повторю через 10 с.'); } egsRetry = t + 10000; }
         }
